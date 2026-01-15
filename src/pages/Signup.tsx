@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, ArrowRight, KeyRound, Lock, Eye, EyeOff, RefreshCw, User } from "lucide-react";
+import { Mail, ArrowRight, KeyRound, Lock, Eye, EyeOff, RefreshCw, User, AtSign } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { supabase } from "@/integrations/supabase/client";
 
 type SignupMode = "password" | "otp";
-type Step = "signup" | "otp-verify" | "success";
+type Step = "signup" | "username" | "otp-verify" | "success";
 
 const RESEND_COOLDOWN = 30;
 
@@ -19,6 +20,8 @@ export default function Signup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [username, setUsername] = useState("");
+  const [usernameError, setUsernameError] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -26,6 +29,7 @@ export default function Signup() {
   const [step, setStep] = useState<Step>("signup");
   const [loading, setLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [checkingUsername, setCheckingUsername] = useState(false);
 
   // Redirect if already logged in
   useEffect(() => {
@@ -47,7 +51,62 @@ export default function Signup() {
     return emailRegex.test(email);
   };
 
-  const handlePasswordSignup = async (e: React.FormEvent) => {
+  const validateUsername = (username: string): string | null => {
+    if (username.length < 3) {
+      return "Username must be at least 3 characters";
+    }
+    if (username.length > 20) {
+      return "Username must be less than 20 characters";
+    }
+    if (!/^[a-z0-9._]+$/.test(username)) {
+      return "Username can only contain lowercase letters, numbers, dots, and underscores";
+    }
+    if (/\s/.test(username)) {
+      return "Username cannot contain spaces";
+    }
+    return null;
+  };
+
+  const checkUsernameAvailability = async (username: string): Promise<boolean> => {
+    setCheckingUsername(true);
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("username", username.toLowerCase())
+        .maybeSingle();
+      
+      if (error) {
+        console.error("Error checking username:", error);
+        return false;
+      }
+      
+      return !data; // Available if no data found
+    } finally {
+      setCheckingUsername(false);
+    }
+  };
+
+  const handleUsernameChange = async (value: string) => {
+    const lowercaseValue = value.toLowerCase().replace(/\s/g, "");
+    setUsername(lowercaseValue);
+    
+    const error = validateUsername(lowercaseValue);
+    if (error) {
+      setUsernameError(error);
+      return;
+    }
+    
+    // Check availability
+    const isAvailable = await checkUsernameAvailability(lowercaseValue);
+    if (!isAvailable) {
+      setUsernameError("This username is already taken");
+    } else {
+      setUsernameError("");
+    }
+  };
+
+  const handleContinueToUsername = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateEmail(email)) {
@@ -59,19 +118,48 @@ export default function Signup() {
       return;
     }
 
-    if (password.length < 6) {
+    if (signupMode === "password") {
+      if (password.length < 6) {
+        toast({
+          title: "Password too short",
+          description: "Password must be at least 6 characters.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        toast({
+          title: "Passwords don't match",
+          description: "Please make sure both passwords match.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    setStep("username");
+  };
+
+  const handlePasswordSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const usernameValidation = validateUsername(username);
+    if (usernameValidation) {
       toast({
-        title: "Password too short",
-        description: "Password must be at least 6 characters.",
+        title: "Invalid username",
+        description: usernameValidation,
         variant: "destructive",
       });
       return;
     }
 
-    if (password !== confirmPassword) {
+    // Double-check username availability
+    const isAvailable = await checkUsernameAvailability(username);
+    if (!isAvailable) {
       toast({
-        title: "Passwords don't match",
-        description: "Please make sure both passwords match.",
+        title: "Username taken",
+        description: "This username is already in use. Please choose another.",
         variant: "destructive",
       });
       return;
@@ -86,13 +174,21 @@ export default function Signup() {
         description: error.message,
         variant: "destructive",
       });
-    } else if (needsConfirmation) {
+      setLoading(false);
+      return;
+    }
+    
+    if (needsConfirmation) {
+      // Store username for later profile update
+      localStorage.setItem("pending_username", username);
       toast({
         title: "Check your email! 📧",
         description: "We've sent a confirmation link to your email.",
       });
       setStep("success");
     } else {
+      // User auto-confirmed, update profile with username
+      await updateProfileUsername(username);
       toast({
         title: "Welcome! 🎓",
         description: "Account created successfully",
@@ -103,13 +199,38 @@ export default function Signup() {
     setLoading(false);
   };
 
+  const updateProfileUsername = async (username: string) => {
+    // Wait a moment for the profile to be created by the trigger
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    if (currentUser) {
+      await supabase
+        .from("profiles")
+        .update({ username: username.toLowerCase() })
+        .eq("user_id", currentUser.id);
+    }
+  };
+
   const handleSendOtp = useCallback(async (e?: React.FormEvent) => {
     e?.preventDefault();
 
-    if (!validateEmail(email)) {
+    const usernameValidation = validateUsername(username);
+    if (usernameValidation) {
       toast({
-        title: "Invalid email",
-        description: "Please enter a valid email address.",
+        title: "Invalid username",
+        description: usernameValidation,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check username availability
+    const isAvailable = await checkUsernameAvailability(username);
+    if (!isAvailable) {
+      toast({
+        title: "Username taken",
+        description: "This username is already in use. Please choose another.",
         variant: "destructive",
       });
       return;
@@ -125,6 +246,7 @@ export default function Signup() {
         variant: "destructive",
       });
     } else {
+      localStorage.setItem("pending_username", username);
       toast({
         title: "Code sent! 📧",
         description: "Check your email for the 6-digit code",
@@ -134,7 +256,7 @@ export default function Signup() {
     }
 
     setLoading(false);
-  }, [email, sendOtp, toast]);
+  }, [email, username, sendOtp, toast]);
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,6 +273,9 @@ export default function Signup() {
       });
       setOtpCode("");
     } else {
+      // Update profile with username
+      await updateProfileUsername(username);
+      localStorage.removeItem("pending_username");
       toast({
         title: "Welcome! 🎓",
         description: "Account created successfully",
@@ -182,6 +307,8 @@ export default function Signup() {
   const resetToSignup = () => {
     setStep("signup");
     setOtpCode("");
+    setUsername("");
+    setUsernameError("");
   };
 
   if (step === "success") {
@@ -237,7 +364,7 @@ export default function Signup() {
           <p className="font-mono text-sm text-muted-foreground mt-2">TSNDC Edition</p>
         </div>
 
-        {step === "signup" ? (
+        {step === "signup" && (
           <div className="bg-card border-2 border-foreground p-6 space-y-4">
             <h2 className="font-display text-xl text-foreground text-center">CREATE ACCOUNT</h2>
 
@@ -269,10 +396,7 @@ export default function Signup() {
               </button>
             </div>
 
-            <form
-              onSubmit={signupMode === "password" ? handlePasswordSignup : handleSendOtp}
-              className="space-y-4"
-            >
+            <form onSubmit={handleContinueToUsername} className="space-y-4">
               {/* Email */}
               <div>
                 <label className="font-mono text-xs text-muted-foreground">EMAIL</label>
@@ -346,23 +470,12 @@ export default function Signup() {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={loading}
                 className={cn(
-                  "w-full py-3 bg-primary text-primary-foreground border-2 border-foreground font-mono text-sm flex items-center justify-center gap-2 hover-brutal",
-                  "disabled:opacity-50 disabled:cursor-not-allowed"
+                  "w-full py-3 bg-primary text-primary-foreground border-2 border-foreground font-mono text-sm flex items-center justify-center gap-2 hover-brutal"
                 )}
               >
-                {loading ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    {signupMode === "password" ? "CREATING ACCOUNT..." : "SENDING..."}
-                  </>
-                ) : (
-                  <>
-                    {signupMode === "password" ? "CREATE ACCOUNT" : "SEND OTP"}
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
+                CONTINUE
+                <ArrowRight className="w-4 h-4" />
               </button>
             </form>
 
@@ -376,7 +489,83 @@ export default function Signup() {
               </p>
             </div>
           </div>
-        ) : (
+        )}
+
+        {step === "username" && (
+          <form 
+            onSubmit={signupMode === "password" ? handlePasswordSignup : handleSendOtp} 
+            className="bg-card border-2 border-foreground p-6 space-y-4"
+          >
+            <h2 className="font-display text-xl text-foreground text-center">CHOOSE USERNAME</h2>
+            <p className="font-mono text-xs text-muted-foreground text-center">
+              This will be your unique identifier on CampusConnect
+            </p>
+
+            {/* Username */}
+            <div>
+              <label className="font-mono text-xs text-muted-foreground">USERNAME</label>
+              <div className="relative mt-1">
+                <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => handleUsernameChange(e.target.value)}
+                  placeholder="yourname"
+                  required
+                  className={cn(
+                    "w-full pl-10 pr-4 py-3 bg-background border-2 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none",
+                    usernameError ? "border-destructive" : "border-foreground focus:border-primary"
+                  )}
+                />
+              </div>
+              {checkingUsername && (
+                <p className="font-mono text-xs text-muted-foreground mt-1">Checking availability...</p>
+              )}
+              {usernameError && (
+                <p className="font-mono text-xs text-destructive mt-1">{usernameError}</p>
+              )}
+              {username && !usernameError && !checkingUsername && (
+                <p className="font-mono text-xs text-primary mt-1">✓ Username available</p>
+              )}
+              <p className="font-mono text-[10px] text-muted-foreground mt-2">
+                Lowercase letters, numbers, dots, underscores only
+              </p>
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading || !!usernameError || !username || checkingUsername}
+              className={cn(
+                "w-full py-3 bg-primary text-primary-foreground border-2 border-foreground font-mono text-sm flex items-center justify-center gap-2 hover-brutal",
+                "disabled:opacity-50 disabled:cursor-not-allowed"
+              )}
+            >
+              {loading ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  {signupMode === "password" ? "CREATING ACCOUNT..." : "SENDING OTP..."}
+                </>
+              ) : (
+                <>
+                  {signupMode === "password" ? "CREATE ACCOUNT" : "SEND OTP"}
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+
+            {/* Back Button */}
+            <button
+              type="button"
+              onClick={resetToSignup}
+              className="w-full py-2 font-mono text-xs text-muted-foreground hover:text-foreground"
+            >
+              ← Back
+            </button>
+          </form>
+        )}
+
+        {step === "otp-verify" && (
           /* OTP Verification Form */
           <form onSubmit={handleVerifyOtp} className="bg-card border-2 border-foreground p-6 space-y-4">
             <h2 className="font-display text-xl text-foreground text-center">ENTER CODE</h2>
@@ -425,10 +614,10 @@ export default function Signup() {
             {/* Back Button */}
             <button
               type="button"
-              onClick={resetToSignup}
+              onClick={() => setStep("username")}
               className="w-full py-2 font-mono text-xs text-muted-foreground hover:text-foreground"
             >
-              ← Use different email
+              ← Back
             </button>
 
             {/* Resend Button */}

@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef } from "react";
-import { Plus, Camera } from "lucide-react";
+import { Plus, Camera, Image } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Story {
   id: string;
@@ -11,24 +11,14 @@ interface Story {
   created_at: string;
   expires_at: string;
   profile?: {
-    username: string;
-    display_name: string;
+    username: string | null;
+    display_name: string | null;
     avatar_url: string | null;
   };
 }
 
-// Fallback stories for demo
-const fallbackStories = [
-  { id: "1", username: "rahul.k", avatar: "RK", hasNew: true },
-  { id: "2", username: "priya.s", avatar: "PS", hasNew: true },
-  { id: "3", username: "amit.j", avatar: "AJ", hasNew: false },
-  { id: "4", username: "neha.m", avatar: "NM", hasNew: true },
-  { id: "5", username: "vikram", avatar: "VK", hasNew: false },
-  { id: "6", username: "sneha.r", avatar: "SR", hasNew: true },
-  { id: "7", username: "arjun.p", avatar: "AP", hasNew: false },
-];
-
 export function StoriesBar() {
+  const { user } = useAuth();
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStory, setSelectedStory] = useState<Story | null>(null);
@@ -47,8 +37,25 @@ export function StoriesBar() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      if (data) {
-        setStories(data as unknown as Story[]);
+      
+      if (data && data.length > 0) {
+        // Get unique user IDs
+        const userIds = [...new Set(data.map(s => s.user_id))];
+        
+        // Fetch profiles
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("user_id, username, display_name, avatar_url")
+          .in("user_id", userIds);
+        
+        const profilesMap = new Map(profiles?.map(p => [p.user_id, p]));
+        
+        const storiesWithProfiles = data.map(story => ({
+          ...story,
+          profile: profilesMap.get(story.user_id) || null,
+        }));
+        
+        setStories(storiesWithProfiles);
       }
     } catch (error) {
       console.error("Error fetching stories:", error);
@@ -56,6 +63,18 @@ export function StoriesBar() {
       setLoading(false);
     }
   };
+
+  // Group stories by user
+  const groupedStories = stories.reduce((acc, story) => {
+    const userId = story.user_id;
+    if (!acc[userId]) {
+      acc[userId] = [];
+    }
+    acc[userId].push(story);
+    return acc;
+  }, {} as Record<string, Story[]>);
+
+  const uniqueUserStories = Object.values(groupedStories).map(userStories => userStories[0]);
 
   return (
     <>
@@ -77,8 +96,8 @@ export function StoriesBar() {
             <span className="font-mono text-[10px] text-muted-foreground">ADD STORY</span>
           </Link>
 
-          {/* Real Stories from DB */}
-          {stories.map((story) => (
+          {/* Stories from DB */}
+          {uniqueUserStories.map((story) => (
             <button
               key={story.id}
               onClick={() => setSelectedStory(story)}
@@ -94,7 +113,7 @@ export function StoriesBar() {
                     />
                   ) : (
                     <span className="font-display text-lg text-foreground">
-                      {(story.profile?.username || "U").slice(0, 2).toUpperCase()}
+                      {(story.profile?.username || story.profile?.display_name || "U").slice(0, 2).toUpperCase()}
                     </span>
                   )}
                 </div>
@@ -105,22 +124,13 @@ export function StoriesBar() {
             </button>
           ))}
 
-          {/* Fallback demo stories if no real stories */}
-          {stories.length === 0 && fallbackStories.map((story) => (
-            <button
-              key={story.id}
-              className="flex-shrink-0 flex flex-col items-center gap-2 group"
-            >
-              <div className={story.hasNew ? "story-ring-animated" : "p-[2px] bg-muted"}>
-                <div className="w-16 h-16 bg-card border-2 border-foreground flex items-center justify-center group-hover:bg-muted transition-colors">
-                  <span className="font-display text-lg text-foreground">{story.avatar}</span>
-                </div>
-              </div>
-              <span className="font-mono text-[10px] text-muted-foreground truncate max-w-16">
-                {story.username}
-              </span>
-            </button>
-          ))}
+          {/* Empty state */}
+          {!loading && stories.length === 0 && (
+            <div className="flex items-center gap-2 px-4">
+              <Image className="w-5 h-5 text-muted-foreground" />
+              <span className="font-mono text-xs text-muted-foreground">No stories yet</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -143,7 +153,7 @@ export function StoriesBar() {
                 </span>
               </div>
               <span className="font-mono text-sm text-foreground">
-                {selectedStory.profile?.username}
+                {selectedStory.profile?.username || "user"}
               </span>
             </div>
             <button

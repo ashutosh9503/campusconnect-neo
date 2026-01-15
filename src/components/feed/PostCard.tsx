@@ -1,6 +1,13 @@
 import { useState } from "react";
 import { MessageSquare, Share2, Bookmark, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useReaction, useSavePost } from "@/hooks/usePosts";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { Link } from "react-router-dom";
+import type { Database } from "@/integrations/supabase/types";
+
+type ReactionType = Database["public"]["Enums"]["reaction_type"];
 
 interface Post {
   id: string;
@@ -25,39 +32,110 @@ interface Post {
   comments: number;
   timestamp: string;
   isSpan?: "row" | "col" | "both";
+  user_reaction?: ReactionType | null;
+  is_saved?: boolean;
 }
 
 interface PostCardProps {
   post: Post;
+  onUpdate?: () => void;
 }
 
-const reactionEmojis = {
+const reactionEmojis: Record<ReactionType, string> = {
   brainrot: "🧠",
   w: "🏆",
   l: "💀",
   coffee: "☕",
 };
 
-export function PostCard({ post }: PostCardProps) {
+export function PostCard({ post, onUpdate }: PostCardProps) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const { addReaction, removeReaction } = useReaction(post.id);
+  const { savePost, unsavePost } = useSavePost(post.id);
+  
   const [reactions, setReactions] = useState(post.reactions);
-  const [activeReaction, setActiveReaction] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
+  const [activeReaction, setActiveReaction] = useState<ReactionType | null>(post.user_reaction || null);
+  const [saved, setSaved] = useState(post.is_saved || false);
+  const [loading, setLoading] = useState(false);
 
-  const handleReaction = (type: keyof typeof reactions) => {
+  const handleReaction = async (type: ReactionType) => {
+    if (!user) {
+      toast({
+        title: "Login required",
+        description: "Please login to react to posts",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    
     if (activeReaction === type) {
-      setReactions(prev => ({ ...prev, [type]: prev[type] - 1 }));
-      setActiveReaction(null);
+      // Remove reaction
+      const { error } = await removeReaction();
+      if (!error) {
+        setReactions(prev => ({ ...prev, [type]: Math.max(0, prev[type] - 1) }));
+        setActiveReaction(null);
+      }
     } else {
+      // Add/change reaction
       if (activeReaction) {
         setReactions(prev => ({ 
           ...prev, 
-          [activeReaction]: prev[activeReaction as keyof typeof reactions] - 1,
-          [type]: prev[type] + 1 
+          [activeReaction]: Math.max(0, prev[activeReaction] - 1),
         }));
-      } else {
-        setReactions(prev => ({ ...prev, [type]: prev[type] + 1 }));
       }
-      setActiveReaction(type);
+      const { error } = await addReaction(type);
+      if (!error) {
+        setReactions(prev => ({ ...prev, [type]: prev[type] + 1 }));
+        setActiveReaction(type);
+      }
+    }
+    
+    setLoading(false);
+  };
+
+  const handleSave = async () => {
+    if (!user) {
+      toast({
+        title: "Login required",
+        description: "Please login to save posts",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    
+    if (saved) {
+      const { error } = await unsavePost();
+      if (!error) {
+        setSaved(false);
+        toast({ title: "Post removed from saved" });
+      }
+    } else {
+      const { error } = await savePost();
+      if (!error) {
+        setSaved(true);
+        toast({ title: "Post saved!" });
+      }
+    }
+    
+    setLoading(false);
+  };
+
+  const handleShare = async () => {
+    const url = `${window.location.origin}/post/${post.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast({ title: "Link copied to clipboard!" });
+    } catch {
+      toast({ 
+        title: "Failed to copy", 
+        description: "Could not copy link to clipboard",
+        variant: "destructive" 
+      });
     }
   };
 
@@ -72,7 +150,10 @@ export function PostCard({ post }: PostCardProps) {
     >
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-3">
+        <Link 
+          to={`/profile/${post.author.username}`}
+          className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+        >
           <div className="w-10 h-10 bg-muted border-2 border-foreground flex items-center justify-center">
             <span className="font-display text-sm text-foreground">{post.author.avatar}</span>
           </div>
@@ -82,7 +163,7 @@ export function PostCard({ post }: PostCardProps) {
               @{post.author.username} • {post.author.stream} • {post.author.year}
             </p>
           </div>
-        </div>
+        </Link>
         <div className="flex items-center gap-2">
           <span className="font-mono text-[10px] text-muted-foreground">{post.timestamp}</span>
           <button className="p-1 hover:bg-muted transition-colors">
@@ -117,15 +198,17 @@ export function PostCard({ post }: PostCardProps) {
 
       {/* Reactions */}
       <div className="flex items-center gap-2 mb-3 flex-wrap">
-        {(Object.keys(reactions) as Array<keyof typeof reactions>).map((type) => (
+        {(Object.keys(reactions) as Array<ReactionType>).map((type) => (
           <button
             key={type}
             onClick={() => handleReaction(type)}
+            disabled={loading}
             className={cn(
               "flex items-center gap-1 px-2 py-1 border-2 transition-all font-mono text-xs",
               activeReaction === type
                 ? "bg-primary text-primary-foreground border-primary"
-                : "bg-transparent text-muted-foreground border-muted hover:border-foreground"
+                : "bg-transparent text-muted-foreground border-muted hover:border-foreground",
+              loading && "opacity-50 cursor-not-allowed"
             )}
           >
             <span>{reactionEmojis[type]}</span>
@@ -140,15 +223,20 @@ export function PostCard({ post }: PostCardProps) {
           <MessageSquare className="w-4 h-4" />
           <span className="font-mono text-xs">{post.comments}</span>
         </button>
-        <button className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+        <button 
+          onClick={handleShare}
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+        >
           <Share2 className="w-4 h-4" />
           <span className="font-mono text-xs">Share</span>
         </button>
         <button 
-          onClick={() => setSaved(!saved)}
+          onClick={handleSave}
+          disabled={loading}
           className={cn(
             "flex items-center gap-2 transition-colors",
-            saved ? "text-primary" : "text-muted-foreground hover:text-foreground"
+            saved ? "text-primary" : "text-muted-foreground hover:text-foreground",
+            loading && "opacity-50 cursor-not-allowed"
           )}
         >
           <Bookmark className={cn("w-4 h-4", saved && "fill-current")} />
