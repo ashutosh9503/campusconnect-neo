@@ -1,76 +1,49 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Search, Plus, Users, User } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
-
-interface Conversation {
-  id: string;
-  name: string;
-  avatar: string;
-  lastMessage: string;
-  timestamp: string;
-  unread: number;
-  isGroup: boolean;
-  isOnline?: boolean;
-}
-
-const mockConversations: Conversation[] = [
-  {
-    id: "1",
-    name: "CS Study Group",
-    avatar: "CS",
-    lastMessage: "Anyone got notes for OS?",
-    timestamp: "2m ago",
-    unread: 5,
-    isGroup: true,
-  },
-  {
-    id: "2",
-    name: "Priya Sharma",
-    avatar: "PS",
-    lastMessage: "See you at the library!",
-    timestamp: "15m ago",
-    unread: 0,
-    isGroup: false,
-    isOnline: true,
-  },
-  {
-    id: "3",
-    name: "Placement Prep Gang",
-    avatar: "PP",
-    lastMessage: "Mock interview tomorrow",
-    timestamp: "1h ago",
-    unread: 12,
-    isGroup: true,
-  },
-  {
-    id: "4",
-    name: "Rahul Kumar",
-    avatar: "RK",
-    lastMessage: "Bro assignment done?",
-    timestamp: "3h ago",
-    unread: 2,
-    isGroup: false,
-    isOnline: false,
-  },
-  {
-    id: "5",
-    name: "TY Project Team",
-    avatar: "TY",
-    lastMessage: "Meeting at 4pm",
-    timestamp: "5h ago",
-    unread: 0,
-    isGroup: true,
-  },
-];
+import { useAuth } from "@/contexts/AuthContext";
+import { useConversations } from "@/hooks/useChat";
 
 export default function Chat() {
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+  const { conversations, loading } = useConversations();
 
-  const filteredConversations = mockConversations.filter(conv =>
-    conv.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate("/login");
+    }
+  }, [user, authLoading, navigate]);
+
+  const filteredConversations = conversations.filter(conv => {
+    const name = conv.name || conv.other_user?.display_name || conv.other_user?.username || "";
+    return name.toLowerCase().includes(searchQuery.toLowerCase());
+  });
+
+  const formatTime = (dateString?: string) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMs / 3600000);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${Math.floor(diffMs / 86400000)}d ago`;
+  };
+
+  if (authLoading || loading) {
+    return (
+      <MainLayout showSidebars={false}>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="font-mono text-muted-foreground">LOADING...</div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout showSidebars={false}>
@@ -101,43 +74,51 @@ export default function Chat() {
 
           {/* Conversations */}
           <div className="flex-1 overflow-y-auto">
-            {filteredConversations.map((conv) => (
-              <Link
-                key={conv.id}
-                to={`/chat/${conv.id}`}
-                className="flex items-center gap-3 p-4 border-b-2 border-border hover:bg-muted transition-colors"
-              >
-                <div className="relative">
-                  <div className={cn(
-                    "w-12 h-12 border-2 border-foreground flex items-center justify-center",
-                    conv.isGroup ? "bg-secondary" : "bg-muted"
-                  )}>
-                    {conv.isGroup ? (
-                      <Users className="w-5 h-5 text-secondary-foreground" />
-                    ) : (
-                      <span className="font-display text-sm text-foreground">{conv.avatar}</span>
-                    )}
-                  </div>
-                  {!conv.isGroup && conv.isOnline && (
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-primary border-2 border-background rounded-full" />
-                  )}
-                </div>
+            {filteredConversations.length === 0 ? (
+              <div className="text-center py-8 font-mono text-muted-foreground">
+                No conversations yet
+              </div>
+            ) : (
+              filteredConversations.map((conv) => {
+                const displayName = conv.name || conv.other_user?.display_name || conv.other_user?.username || "User";
+                const avatarInitials = (conv.other_user?.username || "U").slice(0, 2).toUpperCase();
                 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <p className="font-mono text-sm text-foreground truncate">{conv.name}</p>
-                    <span className="font-mono text-[10px] text-muted-foreground">{conv.timestamp}</span>
-                  </div>
-                  <p className="font-mono text-xs text-muted-foreground truncate">{conv.lastMessage}</p>
-                </div>
-
-                {conv.unread > 0 && (
-                  <div className="w-6 h-6 bg-primary text-primary-foreground flex items-center justify-center font-mono text-xs">
-                    {conv.unread}
-                  </div>
-                )}
-              </Link>
-            ))}
+                return (
+                  <Link
+                    key={conv.id}
+                    to={`/chat/${conv.id}`}
+                    className="flex items-center gap-3 p-4 border-b-2 border-border hover:bg-muted transition-colors"
+                  >
+                    <div className="relative">
+                      <div className={cn(
+                        "w-12 h-12 border-2 border-foreground flex items-center justify-center overflow-hidden",
+                        conv.is_group ? "bg-secondary" : "bg-muted"
+                      )}>
+                        {conv.is_group ? (
+                          <Users className="w-5 h-5 text-secondary-foreground" />
+                        ) : conv.other_user?.avatar_url ? (
+                          <img src={conv.other_user.avatar_url} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="font-display text-sm text-foreground">{avatarInitials}</span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="font-mono text-sm text-foreground truncate">{displayName}</p>
+                        <span className="font-mono text-[10px] text-muted-foreground">
+                          {formatTime(conv.last_message_at)}
+                        </span>
+                      </div>
+                      <p className="font-mono text-xs text-muted-foreground truncate">
+                        {conv.last_message || "No messages yet"}
+                      </p>
+                    </div>
+                  </Link>
+                );
+              })
+            )}
           </div>
         </div>
 
