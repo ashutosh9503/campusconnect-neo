@@ -3,19 +3,45 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { ArrowLeft, Camera, SwitchCamera, X, Check, Image } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function CreateStory() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("environment");
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Redirect if not logged in
+  if (!user) {
+    return (
+      <MainLayout showSidebars={false}>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="font-display text-xl text-foreground mb-4">LOGIN REQUIRED</h2>
+            <p className="font-mono text-sm text-muted-foreground mb-4">
+              You need to be logged in to create stories
+            </p>
+            <Link
+              to="/login"
+              className="inline-block px-6 py-3 bg-primary text-primary-foreground border-2 border-foreground font-mono text-sm hover-brutal"
+            >
+              LOGIN
+            </Link>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   const startCamera = async () => {
     try {
@@ -83,6 +109,11 @@ export default function CreateStory() {
     const imageData = canvas.toDataURL("image/jpeg", 0.9);
     setCapturedImage(imageData);
 
+    // Convert to blob
+    canvas.toBlob((blob) => {
+      if (blob) setCapturedBlob(blob);
+    }, "image/jpeg", 0.9);
+
     // Stop the stream
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
@@ -105,6 +136,7 @@ export default function CreateStory() {
     const reader = new FileReader();
     reader.onload = (e) => {
       setCapturedImage(e.target?.result as string);
+      setCapturedBlob(file);
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
@@ -114,23 +146,58 @@ export default function CreateStory() {
 
   const retake = () => {
     setCapturedImage(null);
+    setCapturedBlob(null);
     startCamera();
   };
 
   const submitStory = async () => {
-    if (!capturedImage) return;
+    if (!capturedBlob || !user) return;
 
     setIsSubmitting(true);
     
-    // Simulate upload
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    toast({
-      title: "Story posted! ✨",
-      description: "Your story will be visible for 24 hours",
-    });
-    
-    navigate("/");
+    try {
+      // Upload to storage
+      const fileName = `${user.id}/${Date.now()}.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from("stories-media")
+        .upload(fileName, capturedBlob);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("stories-media")
+        .getPublicUrl(fileName);
+
+      // Create story record with 24h expiry
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24);
+
+      const { error } = await supabase
+        .from("stories")
+        .insert({
+          user_id: user.id,
+          media_url: urlData.publicUrl,
+          expires_at: expiresAt.toISOString(),
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Story posted! ✨",
+        description: "Your story will be visible for 24 hours",
+      });
+      
+      navigate("/");
+    } catch (error: any) {
+      console.error("Error creating story:", error);
+      toast({
+        title: "Error creating story",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

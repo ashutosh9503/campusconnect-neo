@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { 
   Home, 
   MessageSquare, 
@@ -9,9 +9,12 @@ import {
   TrendingUp, 
   Settings, 
   User,
-  Plus
+  Plus,
+  LogOut,
+  LogIn
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navItems = [
   { icon: Home, label: "Feed", path: "/" },
@@ -27,6 +30,13 @@ const navItems = [
 
 export function Sidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, signOut, loading } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/login");
+  };
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r-2 border-foreground bg-sidebar flex flex-col">
@@ -66,27 +76,58 @@ export function Sidebar() {
       </nav>
 
       {/* Create Post Button */}
-      <div className="p-4 border-t-2 border-foreground">
-        <Link
-          to="/create"
-          className="flex items-center justify-center gap-2 w-full py-3 bg-secondary text-secondary-foreground border-2 border-foreground font-mono text-sm hover-brutal"
-        >
-          <Plus className="w-5 h-5" />
-          <span>CREATE POST</span>
-        </Link>
-      </div>
+      {user && (
+        <div className="p-4 border-t-2 border-foreground">
+          <Link
+            to="/create"
+            className="flex items-center justify-center gap-2 w-full py-3 bg-secondary text-secondary-foreground border-2 border-foreground font-mono text-sm hover-brutal"
+          >
+            <Plus className="w-5 h-5" />
+            <span>CREATE POST</span>
+          </Link>
+        </div>
+      )}
 
       {/* User Profile Mini */}
       <div className="p-4 border-t-2 border-foreground">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-muted border-2 border-foreground flex items-center justify-center">
-            <User className="w-5 h-5 text-muted-foreground" />
+        {loading ? (
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-muted border-2 border-foreground animate-pulse" />
+            <div className="flex-1">
+              <div className="h-4 bg-muted animate-pulse w-20" />
+              <div className="h-3 bg-muted animate-pulse w-16 mt-1" />
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-mono text-sm text-foreground truncate">Guest User</p>
-            <p className="font-mono text-xs text-muted-foreground">TSNDC • 2024</p>
+        ) : user ? (
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-primary border-2 border-foreground flex items-center justify-center">
+              <span className="font-display text-sm text-primary-foreground">
+                {user.email?.slice(0, 2).toUpperCase()}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-mono text-sm text-foreground truncate">
+                {user.email?.split("@")[0]}
+              </p>
+              <p className="font-mono text-xs text-muted-foreground">TSNDC • 2024</p>
+            </div>
+            <button
+              onClick={handleSignOut}
+              className="p-2 hover:bg-muted transition-colors"
+              title="Sign out"
+            >
+              <LogOut className="w-4 h-4 text-muted-foreground" />
+            </button>
           </div>
-        </div>
+        ) : (
+          <Link
+            to="/login"
+            className="flex items-center justify-center gap-2 w-full py-3 bg-card text-foreground border-2 border-foreground font-mono text-sm hover-brutal"
+          >
+            <LogIn className="w-4 h-4" />
+            <span>LOGIN</span>
+          </Link>
+        )}
       </div>
     </aside>
   );
