@@ -4,16 +4,41 @@ import { ArrowLeft, Camera, Image, Video, X, Send } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function CreatePost() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [content, setContent] = useState("");
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Redirect if not logged in
+  if (!user) {
+    return (
+      <MainLayout showSidebars={false}>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="font-display text-xl text-foreground mb-4">LOGIN REQUIRED</h2>
+            <p className="font-mono text-sm text-muted-foreground mb-4">
+              You need to be logged in to create posts
+            </p>
+            <Link
+              to="/login"
+              className="inline-block px-6 py-3 bg-primary text-primary-foreground border-2 border-foreground font-mono text-sm hover-brutal"
+            >
+              LOGIN
+            </Link>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -72,15 +97,55 @@ export default function CreatePost() {
 
     setIsSubmitting(true);
     
-    // Simulate upload delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    toast({
-      title: "Post created! 🎉",
-      description: "Your post has been published successfully",
-    });
-    
-    navigate("/");
+    try {
+      let mediaUrl = null;
+
+      // Upload media if present
+      if (mediaFile && user) {
+        const fileExt = mediaFile.name.split(".").pop();
+        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError, data } = await supabase.storage
+          .from("posts-media")
+          .upload(fileName, mediaFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage
+          .from("posts-media")
+          .getPublicUrl(fileName);
+
+        mediaUrl = urlData.publicUrl;
+      }
+
+      // Create post
+      const { error } = await supabase
+        .from("posts")
+        .insert({
+          user_id: user.id,
+          content: content.trim(),
+          media_url: mediaUrl,
+          media_type: mediaType,
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Post created! 🎉",
+        description: "Your post has been published successfully",
+      });
+      
+      navigate("/");
+    } catch (error: any) {
+      console.error("Error creating post:", error);
+      toast({
+        title: "Error creating post",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -112,11 +177,13 @@ export default function CreatePost() {
         <div className="flex-1 p-4">
           {/* User Info */}
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-muted border-2 border-foreground flex items-center justify-center">
-              <span className="font-display text-sm text-foreground">GU</span>
+            <div className="w-10 h-10 bg-primary border-2 border-foreground flex items-center justify-center">
+              <span className="font-display text-sm text-primary-foreground">
+                {user.email?.slice(0, 2).toUpperCase()}
+              </span>
             </div>
             <div>
-              <p className="font-mono text-sm text-foreground">Guest User</p>
+              <p className="font-mono text-sm text-foreground">{user.email?.split("@")[0]}</p>
               <p className="font-mono text-[10px] text-muted-foreground">TSNDC • 2024</p>
             </div>
           </div>

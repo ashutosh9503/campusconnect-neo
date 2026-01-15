@@ -1,17 +1,20 @@
-import { Link, useLocation } from "react-router-dom";
-import { Home, MessageSquare, Plus, Bell, User } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Home, MessageSquare, Plus, Bell, User, LogIn } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const mobileNavItems = [
-  { icon: Home, label: "Feed", path: "/" },
-  { icon: MessageSquare, label: "Chat", path: "/chat" },
-  { icon: Plus, label: "Post", path: "/create", isAction: true },
-  { icon: Bell, label: "Alerts", path: "/notifications" },
-  { icon: User, label: "You", path: "/profile" },
-];
+import { useAuth } from "@/contexts/AuthContext";
 
 export function MobileNav() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const mobileNavItems = [
+    { icon: Home, label: "Feed", path: "/" },
+    { icon: MessageSquare, label: "Chat", path: "/chat" },
+    { icon: Plus, label: "Post", path: user ? "/create" : "/login", isAction: true },
+    { icon: Bell, label: "Alerts", path: "/notifications" },
+    { icon: user ? User : LogIn, label: user ? "You" : "Login", path: user ? "/profile" : "/login" },
+  ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t-2 border-foreground md:hidden">

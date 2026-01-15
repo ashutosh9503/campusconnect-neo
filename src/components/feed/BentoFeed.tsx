@@ -1,6 +1,25 @@
+import { useEffect, useState } from "react";
 import { PostCard } from "./PostCard";
+import { supabase } from "@/integrations/supabase/client";
 
-const mockPosts = [
+interface Post {
+  id: string;
+  user_id: string;
+  content: string;
+  media_url: string | null;
+  media_type: string | null;
+  created_at: string;
+  profile?: {
+    username: string;
+    display_name: string;
+    avatar_url: string | null;
+    stream: string;
+    year: string;
+  };
+}
+
+// Fallback posts for demo
+const fallbackPosts = [
   {
     id: "1",
     author: {
@@ -95,10 +114,70 @@ const mockPosts = [
   },
 ];
 
+function formatTimeAgo(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  return `${diffDays}d ago`;
+}
+
 export function BentoFeed() {
+  const [posts, setPosts] = useState<any[]>(fallbackPosts);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPosts();
+  }, []);
+
+  const fetchPosts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("posts")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        const formattedPosts = data.map((post: any, index: number) => ({
+          id: post.id,
+          author: {
+            name: "User",
+            username: "user",
+            avatar: "US",
+            stream: "CS",
+            year: "TY",
+          },
+          content: post.content,
+          media: post.media_url ? {
+            type: post.media_type === "video" ? "video" : "image",
+            url: post.media_url,
+          } : undefined,
+          reactions: { brainrot: 0, w: 0, l: 0, coffee: 0 },
+          comments: 0,
+          timestamp: formatTimeAgo(post.created_at),
+          isSpan: index % 5 === 0 ? "row" : index % 7 === 0 ? "col" : undefined,
+        }));
+        setPosts(formattedPosts);
+      }
+    } catch (error) {
+      console.error("Error fetching posts:", error);
+      // Keep fallback posts
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 auto-rows-auto">
-      {mockPosts.map((post) => (
+      {posts.map((post) => (
         <PostCard key={post.id} post={post} />
       ))}
     </div>
