@@ -178,7 +178,24 @@ export function useSavedPosts() {
         .in("id", postIds)
         .order("created_at", { ascending: false });
 
-      setPosts(postsData || []);
+      // Fetch profiles for all saved posts
+      const userIds = [...new Set(postsData?.map(p => p.user_id) || [])];
+      let profilesMap = new Map();
+      if (userIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("user_id, username, display_name, avatar_url, stream, year")
+          .in("user_id", userIds);
+        profilesMap = new Map(profilesData?.map(p => [p.user_id, p]));
+      }
+
+      const enrichedPosts = postsData?.map(post => ({
+        ...post,
+        profile: profilesMap.get(post.user_id) || null,
+        is_saved: true,
+      })) || [];
+
+      setPosts(enrichedPosts);
       setLoading(false);
     };
 
