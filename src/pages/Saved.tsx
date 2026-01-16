@@ -1,39 +1,32 @@
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { Bookmark, Trash2 } from "lucide-react";
+import { Bookmark } from "lucide-react";
 import { PostCard } from "@/components/feed/PostCard";
-
-const savedPosts = [
-  {
-    id: "1",
-    author: {
-      name: "Sneha Rao",
-      username: "sneha.r",
-      avatar: "SR",
-      stream: "IT",
-      year: "TY",
-    },
-    content: "Placement season tip: When they ask 'Where do you see yourself in 5 years?', don't say 'With a working AC in this college'",
-    reactions: { brainrot: 234, w: 178, l: 3, coffee: 56 },
-    comments: 89,
-    timestamp: "1d ago",
-  },
-  {
-    id: "2",
-    author: {
-      name: "Neha Mehta",
-      username: "neha.m",
-      avatar: "NM",
-      stream: "CS",
-      year: "TY",
-    },
-    content: "Library 3rd floor has AC finally working after 2 months. This is not a drill. I repeat, THIS IS NOT A DRILL 🚨",
-    reactions: { brainrot: 156, w: 89, l: 0, coffee: 45 },
-    comments: 67,
-    timestamp: "6h ago",
-  },
-];
+import { useSavedPosts } from "@/hooks/usePosts";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Saved() {
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+  const { posts, loading } = useSavedPosts();
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate("/login");
+    }
+  }, [user, authLoading, navigate]);
+
+  if (authLoading || loading) {
+    return (
+      <MainLayout showSidebars={false}>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="font-mono text-muted-foreground">LOADING...</div>
+        </div>
+      </MainLayout>
+    );
+  }
+
   return (
     <MainLayout showSidebars={false}>
       <div className="min-h-screen max-w-2xl mx-auto">
@@ -44,15 +37,33 @@ export default function Saved() {
             <h1 className="font-display text-xl text-foreground">SAVED POSTS</h1>
           </div>
           <p className="font-mono text-xs text-muted-foreground mt-1">
-            {savedPosts.length} posts saved
+            {posts.length} posts saved
           </p>
         </div>
 
         {/* Saved Posts */}
         <div className="p-4 space-y-4">
-          {savedPosts.length > 0 ? (
-            savedPosts.map((post) => (
-              <PostCard key={post.id} post={post} />
+          {posts.length > 0 ? (
+            posts.map((post) => (
+              <PostCard 
+                key={post.id} 
+                post={{
+                  id: post.id,
+                  author: {
+                    name: (post as any).profile?.display_name || (post as any).profile?.username || "User",
+                    username: (post as any).profile?.username || "user",
+                    avatar: ((post as any).profile?.username || "U").slice(0, 2).toUpperCase(),
+                    stream: (post as any).profile?.stream || "CS",
+                    year: (post as any).profile?.year || "TY",
+                  },
+                  content: post.content,
+                  media: post.media_url ? { type: post.media_type === "video" ? "video" : "image", url: post.media_url } : undefined,
+                  reactions: { brainrot: 0, w: 0, l: 0, coffee: 0 },
+                  comments: 0,
+                  timestamp: new Date(post.created_at).toLocaleDateString(),
+                  is_saved: true,
+                }} 
+              />
             ))
           ) : (
             <div className="text-center py-16">

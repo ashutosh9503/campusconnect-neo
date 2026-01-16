@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useProfile } from "@/hooks/useProfile";
 
 const navItems = [
   { icon: Home, label: "Feed", path: "/" },
@@ -32,11 +33,15 @@ export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut, loading } = useAuth();
+  const { profile } = useProfile();
 
   const handleSignOut = async () => {
     await signOut();
     navigate("/login");
   };
+
+  const displayName = profile?.display_name || profile?.username || user?.email?.split("@")[0] || "User";
+  const avatarInitials = (profile?.username || user?.email || "U").slice(0, 2).toUpperCase();
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r-2 border-foreground bg-sidebar flex flex-col">
@@ -100,16 +105,18 @@ export function Sidebar() {
           </div>
         ) : user ? (
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary border-2 border-foreground flex items-center justify-center">
-              <span className="font-display text-sm text-primary-foreground">
-                {user.email?.slice(0, 2).toUpperCase()}
-              </span>
+            <div className="w-10 h-10 bg-primary border-2 border-foreground flex items-center justify-center overflow-hidden">
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt={displayName} className="w-full h-full object-cover" />
+              ) : (
+                <span className="font-display text-sm text-primary-foreground">{avatarInitials}</span>
+              )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-mono text-sm text-foreground truncate">
-                {user.email?.split("@")[0]}
+              <p className="font-mono text-sm text-foreground truncate">{displayName}</p>
+              <p className="font-mono text-xs text-muted-foreground">
+                @{profile?.username || "user"}
               </p>
-              <p className="font-mono text-xs text-muted-foreground">TSNDC • 2024</p>
             </div>
             <button
               onClick={handleSignOut}
