@@ -45,12 +45,12 @@ export default function Saved() {
         <div className="p-4 space-y-4">
           {posts.length > 0 ? (
             posts.map((post) => (
-              <PostCard 
-                key={post.id} 
+              <PostCard
+                key={post.id}
                 post={{
                   id: post.id,
                   author: {
-                    name: (post as any).profile?.display_name || (post as any).profile?.username || "User",
+                    name: (post as any).profile?.full_name || (post as any).profile?.username || "User",
                     username: (post as any).profile?.username || "user",
                     avatar: ((post as any).profile?.username || "U").slice(0, 2).toUpperCase(),
                     stream: (post as any).profile?.stream || "CS",
@@ -62,7 +62,7 @@ export default function Saved() {
                   comments: 0,
                   timestamp: new Date(post.created_at).toLocaleDateString(),
                   is_saved: true,
-                }} 
+                }}
               />
             ))
           ) : (

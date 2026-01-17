@@ -25,19 +25,19 @@ export default function UserProfile() {
   useEffect(() => {
     const fetchUserId = async () => {
       if (!username) return;
-      
+
       const { data } = await supabase
         .from("profiles")
-        .select("user_id")
+        .select("id")
         .eq("username", username)
         .single();
-      
+
       if (data) {
-        setProfileUserId(data.user_id);
+        setProfileUserId(data.id);
       }
       setLoadingProfile(false);
     };
-    
+
     fetchUserId();
   }, [username]);
 
@@ -110,22 +110,22 @@ export default function UserProfile() {
     );
   }
 
-  const displayName = profile.display_name || profile.username || "User";
+  const displayName = profile.full_name || profile.username || "User";
   const avatarInitials = (profile.username || displayName).slice(0, 2).toUpperCase();
 
   const formattedPosts = posts.map((post, index) => ({
     id: post.id,
     author: {
-      name: post.profile?.display_name || post.profile?.username || "User",
+      name: post.profile?.full_name || post.profile?.username || "User",
       username: post.profile?.username || "user",
       avatar: (post.profile?.username || "U").slice(0, 2).toUpperCase(),
       stream: post.profile?.stream || "CS",
       year: post.profile?.year || "TY",
     },
     content: post.content,
-    media: post.media_url ? { 
-      type: (post.media_type === "video" ? "video" : "image") as "image" | "video", 
-      url: post.media_url 
+    media: post.media_url ? {
+      type: (post.media_type === "video" ? "video" : "image") as "image" | "video",
+      url: post.media_url
     } : undefined,
     reactions: post.reactions_count || { brainrot: 0, w: 0, l: 0, coffee: 0 },
     comments: post.comments_count || 0,
@@ -203,7 +203,7 @@ export default function UserProfile() {
 
           {/* Action Buttons */}
           {isOwnProfile ? (
-            <Link 
+            <Link
               to="/settings"
               className="w-full mt-4 py-2 bg-card border-2 border-foreground font-mono text-sm text-foreground hover-brutal flex items-center justify-center gap-2"
             >

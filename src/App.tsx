@@ -13,12 +13,14 @@ import CreatePost from "./pages/CreatePost";
 import CreateStory from "./pages/CreateStory";
 import Notifications from "./pages/Notifications";
 import Groups from "./pages/Groups";
+import GroupChat from "./pages/GroupChat";
 import Events from "./pages/Events";
 import Saved from "./pages/Saved";
 import Trending from "./pages/Trending";
 import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
 import UserProfile from "./pages/UserProfile";
+import Search from "./pages/Search";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,11 +42,13 @@ const App = () => (
             <Route path="/stories/create" element={<CreateStory />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/groups" element={<Groups />} />
+            <Route path="/groups/:groupId/chat" element={<GroupChat />} />
             <Route path="/events" element={<Events />} />
             <Route path="/saved" element={<Saved />} />
             <Route path="/trending" element={<Trending />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/search" element={<Search />} />
             <Route path="/profile/:username" element={<UserProfile />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

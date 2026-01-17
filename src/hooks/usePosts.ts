@@ -15,7 +15,7 @@ export interface Post {
   updated_at: string;
   profile?: {
     username: string | null;
-    display_name: string | null;
+    full_name: string | null;
     avatar_url: string | null;
     stream: string | null;
     year: string | null;
@@ -40,7 +40,7 @@ export function usePosts(userId?: string, limit = 20) {
   const fetchPosts = useCallback(async () => {
     try {
       setLoading(true);
-      
+
       let query = supabase
         .from("posts")
         .select("*")
@@ -60,9 +60,9 @@ export function usePosts(userId?: string, limit = 20) {
       if (userIds.length > 0) {
         const { data: profilesData } = await supabase
           .from("profiles")
-          .select("user_id, username, display_name, avatar_url, stream, year")
-          .in("user_id", userIds);
-        profilesMap = new Map(profilesData?.map(p => [p.user_id, p]));
+          .select("id, username, full_name, avatar_url, stream, year")
+          .in("id", userIds);
+        profilesMap = new Map(profilesData?.map(p => [p.id, p]));
       }
 
       // Fetch reactions counts
@@ -184,9 +184,9 @@ export function useSavedPosts() {
       if (userIds.length > 0) {
         const { data: profilesData } = await supabase
           .from("profiles")
-          .select("user_id, username, display_name, avatar_url, stream, year")
-          .in("user_id", userIds);
-        profilesMap = new Map(profilesData?.map(p => [p.user_id, p]));
+          .select("id, username, display_name, avatar_url, stream, year")
+          .in("id", userIds);
+        profilesMap = new Map(profilesData?.map(p => [p.id, p]));
       }
 
       const enrichedPosts = postsData?.map(post => ({

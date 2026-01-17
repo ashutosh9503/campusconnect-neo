@@ -10,7 +10,7 @@ export interface Comment {
   created_at: string;
   profile?: {
     username: string | null;
-    display_name: string | null;
+    full_name: string | null;
     avatar_url: string | null;
   } | null;
 }
@@ -23,7 +23,7 @@ export function useComments(postId: string) {
   const fetchComments = useCallback(async () => {
     try {
       setLoading(true);
-      
+
       const { data: commentsData, error } = await supabase
         .from("comments")
         .select("*")
@@ -38,9 +38,9 @@ export function useComments(postId: string) {
       if (userIds.length > 0) {
         const { data: profilesData } = await supabase
           .from("profiles")
-          .select("user_id, username, display_name, avatar_url")
-          .in("user_id", userIds);
-        profilesMap = new Map(profilesData?.map(p => [p.user_id, p]));
+          .select("id, username, full_name, avatar_url")
+          .in("id", userIds);
+        profilesMap = new Map(profilesData?.map(p => [p.id, p]));
       }
 
       const enrichedComments = commentsData?.map(comment => ({
@@ -80,8 +80,8 @@ export function useComments(postId: string) {
       // Fetch profile for the new comment
       const { data: profile } = await supabase
         .from("profiles")
-        .select("user_id, username, display_name, avatar_url")
-        .eq("user_id", user.id)
+        .select("id, username, full_name, avatar_url")
+        .eq("id", user.id)
         .single();
 
       setComments(prev => [...prev, { ...newComment, profile }]);
@@ -119,7 +119,7 @@ export function useComments(postId: string) {
         .eq("user_id", user.id);
 
       if (error) throw error;
-      
+
       setComments(prev => prev.filter(c => c.id !== commentId));
       return { error: null };
     } catch (err: any) {

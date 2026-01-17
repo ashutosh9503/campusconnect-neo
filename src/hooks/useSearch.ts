@@ -28,14 +28,14 @@ export function useSearch() {
       // Search users
       const { data: users } = await supabase
         .from("profiles")
-        .select("user_id, username, display_name, avatar_url, stream, year")
+        .select("id, username, display_name, avatar_url, stream, year")
         .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
         .limit(10);
 
       users?.forEach(user => {
         searchResults.push({
           type: "user",
-          id: user.user_id,
+          id: user.id,
           title: user.display_name || user.username || "User",
           subtitle: `@${user.username || "user"} • ${user.stream || ""} ${user.year || ""}`,
           avatar: user.avatar_url || undefined,
@@ -55,10 +55,10 @@ export function useSearch() {
         const userIds = [...new Set(posts.map(p => p.user_id))];
         const { data: profiles } = await supabase
           .from("profiles")
-          .select("user_id, username, display_name")
-          .in("user_id", userIds);
+          .select("id, username, display_name")
+          .in("id", userIds);
 
-        const profilesMap = new Map(profiles?.map(p => [p.user_id, p]));
+        const profilesMap = new Map(profiles?.map(p => [p.id, p]));
 
         posts.forEach(post => {
           const profile = profilesMap.get(post.user_id);

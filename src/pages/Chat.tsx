@@ -22,8 +22,8 @@ export default function Chat() {
     }
   }, [user, authLoading, navigate]);
 
-  const handleStartConversation = async (userId: string) => {
-    const { conversationId, error } = await startConversation(userId);
+  const handleStartConversation = async (selectedUser: { id: string }) => {
+    const { conversationId, error } = await startConversation(selectedUser.id);
     if (error) {
       toast.error("Failed to start conversation");
       return;
@@ -36,8 +36,8 @@ export default function Chat() {
   };
 
   const filteredConversations = conversations.filter(conv => {
-    const name = conv.name || conv.other_user?.display_name || conv.other_user?.username || "";
-    return name.toLowerCase().includes(searchQuery.toLowerCase());
+    const displayName = conv.name || conv.other_user?.full_name || conv.other_user?.username || "User";
+    return displayName.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   const formatTime = (dateString?: string) => {
@@ -71,25 +71,25 @@ export default function Chat() {
           <div className="p-4 border-b-2 border-foreground">
             <div className="flex items-center justify-between mb-4">
               <h1 className="font-display text-xl text-foreground">MESSAGES</h1>
-              <button 
+              <button
                 onClick={() => setShowNewChat(!showNewChat)}
                 className="p-2 bg-primary text-primary-foreground border-2 border-foreground hover-brutal"
               >
                 <Plus className="w-5 h-5" />
               </button>
             </div>
-            
+
             {/* New Chat - User Search */}
             {showNewChat && (
               <div className="mb-4">
                 <p className="font-mono text-xs text-muted-foreground mb-2">START NEW CHAT:</p>
-                <UserSearch 
+                <UserSearch
                   onSelectUser={handleStartConversation}
                   placeholder="Search users to chat..."
                 />
               </div>
             )}
-            
+
             {/* Search Conversations */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -110,7 +110,7 @@ export default function Chat() {
                 {conversations.length === 0 ? (
                   <>
                     <p className="mb-2">No conversations yet</p>
-                    <button 
+                    <button
                       onClick={() => setShowNewChat(true)}
                       className="text-primary hover:underline"
                     >
@@ -123,9 +123,9 @@ export default function Chat() {
               </div>
             ) : (
               filteredConversations.map((conv) => {
-                const displayName = conv.name || conv.other_user?.display_name || conv.other_user?.username || "User";
+                const displayName = conv.name || conv.other_user?.full_name || conv.other_user?.username || "User";
                 const avatarInitials = (conv.other_user?.username || "U").slice(0, 2).toUpperCase();
-                
+
                 return (
                   <Link
                     key={conv.id}
@@ -146,7 +146,7 @@ export default function Chat() {
                         )}
                       </div>
                     </div>
-                    
+
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <p className="font-mono text-sm text-foreground truncate">{displayName}</p>

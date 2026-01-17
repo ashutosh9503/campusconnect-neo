@@ -96,16 +96,20 @@ export default function CreatePost() {
     }
 
     setIsSubmitting(true);
-    
+
     try {
+      // Get authoritative user
+      const { data: { user: safeUser }, error: userError } = await supabase.auth.getUser();
+      if (userError || !safeUser) throw new Error("Authentication error. Please login again.");
+
       let mediaUrl = null;
 
       // Upload media if present
-      if (mediaFile && user) {
+      if (mediaFile) {
         const fileExt = mediaFile.name.split(".").pop();
-        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-        
-        const { error: uploadError, data } = await supabase.storage
+        const fileName = `${safeUser.id}/${Date.now()}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
           .from("posts-media")
           .upload(fileName, mediaFile);
 
@@ -122,7 +126,7 @@ export default function CreatePost() {
       const { error } = await supabase
         .from("posts")
         .insert({
-          user_id: user.id,
+          user_id: safeUser.id,
           content: content.trim(),
           media_url: mediaUrl,
           media_type: mediaType,
@@ -134,7 +138,7 @@ export default function CreatePost() {
         title: "Post created! 🎉",
         description: "Your post has been published successfully",
       });
-      
+
       navigate("/");
     } catch (error: any) {
       console.error("Error creating post:", error);

@@ -10,7 +10,7 @@ export interface Profile {
   id: string;
   user_id: string;
   username: string | null;
-  display_name: string | null;
+  full_name: string | null;
   bio: string | null;
   stream: StreamType | null;
   year: YearType | null;
@@ -38,11 +38,11 @@ export function useProfile(userId?: string) {
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
-        .eq("user_id", targetUserId)
+        .eq("id", targetUserId) // Changed from user_id to id
         .single();
 
       if (error) throw error;
-      setProfile(data as Profile);
+      setProfile({ ...data, user_id: data.id } as Profile);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -61,7 +61,7 @@ export function useProfile(userId?: string) {
       const { error } = await supabase
         .from("profiles")
         .update(updates)
-        .eq("user_id", targetUserId);
+        .eq("id", targetUserId);
 
       if (error) throw error;
       await fetchProfile();
@@ -138,14 +138,14 @@ export function useFollowStats(userId?: string) {
         await supabase
           .from("follows")
           .insert({ follower_id: user.id, following_id: targetUserId });
-        
+
         // Create notification - use type assertion for new table
         await (supabase.from("notifications" as any) as any).insert({
           user_id: targetUserId,
           actor_id: user.id,
           type: "follow",
         });
-        
+
         setIsFollowing(true);
         setFollowersCount(prev => prev + 1);
       }

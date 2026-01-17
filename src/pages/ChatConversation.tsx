@@ -52,7 +52,7 @@ export default function ChatConversation() {
     );
   }
 
-  const displayName = otherUser?.display_name || otherUser?.username || "User";
+  const displayName = otherUser?.full_name || otherUser?.username || "User";
   const avatarInitials = (otherUser?.username || "U").slice(0, 2).toUpperCase();
 
   return (

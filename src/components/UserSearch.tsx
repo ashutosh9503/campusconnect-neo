@@ -5,14 +5,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
 interface UserResult {
-  user_id: string;
+  id: string;
   username: string | null;
-  display_name: string | null;
+  full_name: string | null;
   avatar_url: string | null;
 }
 
 interface UserSearchProps {
-  onSelectUser: (userId: string) => void;
+  onSelectUser: (user: UserResult) => void;
   placeholder?: string;
   className?: string;
 }
@@ -48,9 +48,9 @@ export function UserSearch({ onSelectUser, placeholder = "Search users...", clas
       try {
         const { data, error } = await supabase
           .from("profiles")
-          .select("user_id, username, display_name, avatar_url")
-          .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
-          .neq("user_id", user?.id || "")
+          .select("id, username, full_name, avatar_url")
+          .or(`username.ilike.%${query}%,full_name.ilike.%${query}%`)
+          // .neq("id", user?.id || "") // Optional: exclude self if needed
           .limit(10);
 
         if (error) throw error;
@@ -66,8 +66,8 @@ export function UserSearch({ onSelectUser, placeholder = "Search users...", clas
     return () => clearTimeout(debounce);
   }, [query, user?.id]);
 
-  const handleSelect = (userId: string) => {
-    onSelectUser(userId);
+  const handleSelect = (result: UserResult) => {
+    onSelectUser(result);
     setQuery("");
     setResults([]);
     setIsOpen(false);
@@ -114,8 +114,8 @@ export function UserSearch({ onSelectUser, placeholder = "Search users...", clas
           ) : results.length > 0 ? (
             results.map((result) => (
               <button
-                key={result.user_id}
-                onClick={() => handleSelect(result.user_id)}
+                key={result.id}
+                onClick={() => handleSelect(result)}
                 className="w-full flex items-center gap-3 p-3 hover:bg-muted transition-colors text-left"
               >
                 <div className="w-10 h-10 bg-muted border-2 border-foreground flex items-center justify-center overflow-hidden">
@@ -123,13 +123,13 @@ export function UserSearch({ onSelectUser, placeholder = "Search users...", clas
                     <img src={result.avatar_url} alt="" className="w-full h-full object-cover" />
                   ) : (
                     <span className="font-display text-xs text-foreground">
-                      {(result.username || result.display_name || "U").slice(0, 2).toUpperCase()}
+                      {(result.username || result.full_name || "U").slice(0, 2).toUpperCase()}
                     </span>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-mono text-sm text-foreground truncate">
-                    {result.display_name || result.username || "User"}
+                    {result.full_name || result.username || "User"}
                   </p>
                   {result.username && (
                     <p className="font-mono text-xs text-muted-foreground truncate">

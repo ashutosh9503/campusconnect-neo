@@ -12,7 +12,7 @@ interface Story {
   expires_at: string;
   profile?: {
     username: string | null;
-    display_name: string | null;
+    full_name: string | null;
     avatar_url: string | null;
   };
 }
@@ -37,24 +37,24 @@ export function StoriesBar() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      
+
       if (data && data.length > 0) {
         // Get unique user IDs
         const userIds = [...new Set(data.map(s => s.user_id))];
-        
+
         // Fetch profiles
         const { data: profiles } = await supabase
           .from("profiles")
-          .select("user_id, username, display_name, avatar_url")
-          .in("user_id", userIds);
-        
-        const profilesMap = new Map(profiles?.map(p => [p.user_id, p]));
-        
+          .select("id, username, full_name, avatar_url")
+          .in("id", userIds);
+
+        const profilesMap = new Map(profiles?.map(p => [p.id, p]));
+
         const storiesWithProfiles = data.map(story => ({
           ...story,
           profile: profilesMap.get(story.user_id) || null,
         }));
-        
+
         setStories(storiesWithProfiles);
       }
     } catch (error) {
@@ -79,7 +79,7 @@ export function StoriesBar() {
   return (
     <>
       <div className="border-b-2 border-foreground bg-card p-4">
-        <div 
+        <div
           ref={scrollRef}
           className="flex items-center gap-4 overflow-x-auto scrollbar-hide pb-2"
         >
@@ -106,14 +106,14 @@ export function StoriesBar() {
               <div className="story-ring-animated">
                 <div className="w-16 h-16 bg-card border-2 border-foreground flex items-center justify-center group-hover:bg-muted transition-colors overflow-hidden">
                   {story.profile?.avatar_url ? (
-                    <img 
-                      src={story.profile.avatar_url} 
+                    <img
+                      src={story.profile.avatar_url}
                       alt={story.profile.username || "User"}
                       className="w-full h-full object-cover"
                     />
                   ) : (
                     <span className="font-display text-lg text-foreground">
-                      {(story.profile?.username || story.profile?.display_name || "U").slice(0, 2).toUpperCase()}
+                      {(story.profile?.username || story.profile?.full_name || "U").slice(0, 2).toUpperCase()}
                     </span>
                   )}
                 </div>
@@ -136,13 +136,13 @@ export function StoriesBar() {
 
       {/* Story Viewer Modal */}
       {selectedStory && (
-        <div 
+        <div
           className="fixed inset-0 z-50 bg-background flex items-center justify-center"
           onClick={() => setSelectedStory(null)}
         >
           <div className="relative w-full max-w-md h-full max-h-[80vh]">
-            <img 
-              src={selectedStory.media_url} 
+            <img
+              src={selectedStory.media_url}
               alt="Story"
               className="w-full h-full object-contain"
             />

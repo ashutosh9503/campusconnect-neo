@@ -75,12 +75,12 @@ export default function Signup() {
         .select("username")
         .eq("username", username.toLowerCase())
         .maybeSingle();
-      
+
       if (error) {
         console.error("Error checking username:", error);
         return false;
       }
-      
+
       return !data; // Available if no data found
     } finally {
       setCheckingUsername(false);
@@ -90,13 +90,13 @@ export default function Signup() {
   const handleUsernameChange = async (value: string) => {
     const lowercaseValue = value.toLowerCase().replace(/\s/g, "");
     setUsername(lowercaseValue);
-    
+
     const error = validateUsername(lowercaseValue);
     if (error) {
       setUsernameError(error);
       return;
     }
-    
+
     // Check availability
     const isAvailable = await checkUsernameAvailability(lowercaseValue);
     if (!isAvailable) {
@@ -166,7 +166,11 @@ export default function Signup() {
     }
 
     setLoading(true);
-    const { error, needsConfirmation } = await signUpWithPassword(email, password);
+    const { error, needsConfirmation } = await signUpWithPassword(email, password, {
+      username: username,
+      full_name: username, // Default full name to username
+      avatar_url: `https://api.dicebear.com/7.x/initials/svg?seed=${username}`,
+    });
 
     if (error) {
       toast({
@@ -177,7 +181,7 @@ export default function Signup() {
       setLoading(false);
       return;
     }
-    
+
     if (needsConfirmation) {
       // Store username for later profile update
       localStorage.setItem("pending_username", username);
@@ -187,8 +191,7 @@ export default function Signup() {
       });
       setStep("success");
     } else {
-      // User auto-confirmed, update profile with username
-      await updateProfileUsername(username);
+      localStorage.removeItem("pending_username");
       toast({
         title: "Welcome! 🎓",
         description: "Account created successfully",
@@ -197,19 +200,6 @@ export default function Signup() {
     }
 
     setLoading(false);
-  };
-
-  const updateProfileUsername = async (username: string) => {
-    // Wait a moment for the profile to be created by the trigger
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
-    if (currentUser) {
-      await supabase
-        .from("profiles")
-        .update({ username: username.toLowerCase() })
-        .eq("user_id", currentUser.id);
-    }
   };
 
   const handleSendOtp = useCallback(async (e?: React.FormEvent) => {
@@ -273,8 +263,6 @@ export default function Signup() {
       });
       setOtpCode("");
     } else {
-      // Update profile with username
-      await updateProfileUsername(username);
       localStorage.removeItem("pending_username");
       toast({
         title: "Welcome! 🎓",
@@ -492,8 +480,8 @@ export default function Signup() {
         )}
 
         {step === "username" && (
-          <form 
-            onSubmit={signupMode === "password" ? handlePasswordSignup : handleSendOtp} 
+          <form
+            onSubmit={signupMode === "password" ? handlePasswordSignup : handleSendOtp}
             className="bg-card border-2 border-foreground p-6 space-y-4"
           >
             <h2 className="font-display text-xl text-foreground text-center">CHOOSE USERNAME</h2>

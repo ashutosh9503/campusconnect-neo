@@ -2,6 +2,7 @@ import { useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Users, Plus, Lock, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Link } from "react-router-dom";
 import { useGroups } from "@/hooks/useGroups";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -77,7 +78,7 @@ export default function Groups() {
         <div className="p-4 border-b-2 border-foreground sticky top-0 bg-background z-10">
           <div className="flex items-center justify-between">
             <h1 className="font-display text-xl text-foreground">GROUPS</h1>
-            <button 
+            <button
               onClick={() => setShowCreateDialog(true)}
               className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground border-2 border-foreground font-mono text-sm hover-brutal"
             >
@@ -105,7 +106,7 @@ export default function Groups() {
                       {group.name.slice(0, 2).toUpperCase()}
                     </span>
                   </div>
-                  
+
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <h3 className="font-mono text-sm text-foreground truncate">{group.name}</h3>
@@ -139,6 +140,14 @@ export default function Groups() {
                   >
                     {group.is_member ? "JOINED" : "JOIN GROUP"}
                   </button>
+                  {group.is_member && (
+                    <Link
+                      to={`/groups/${group.id}/chat`}
+                      className="block w-full text-center mt-2 py-2 border-2 border-foreground bg-secondary text-secondary-foreground font-mono text-xs hover-brutal"
+                    >
+                      OPEN CHAT
+                    </Link>
+                  )}
                 </div>
               </div>
             ))

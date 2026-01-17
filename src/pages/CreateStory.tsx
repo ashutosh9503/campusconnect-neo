@@ -13,7 +13,7 @@ export default function CreateStory() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
@@ -91,10 +91,10 @@ export default function CreateStory() {
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    
+
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
-    
+
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
@@ -105,7 +105,7 @@ export default function CreateStory() {
     }
 
     ctx.drawImage(video, 0, 0);
-    
+
     const imageData = canvas.toDataURL("image/jpeg", 0.9);
     setCapturedImage(imageData);
 
@@ -154,18 +154,18 @@ export default function CreateStory() {
     if (!capturedBlob || !user) return;
 
     setIsSubmitting(true);
-    
+
     try {
       // Upload to storage
       const fileName = `${user.id}/${Date.now()}.jpg`;
       const { error: uploadError } = await supabase.storage
-        .from("stories-media")
+        .from("stories")
         .upload(fileName, capturedBlob);
 
       if (uploadError) throw uploadError;
 
       const { data: urlData } = supabase.storage
-        .from("stories-media")
+        .from("stories")
         .getPublicUrl(fileName);
 
       // Create story record with 24h expiry
@@ -186,7 +186,7 @@ export default function CreateStory() {
         title: "Story posted! ✨",
         description: "Your story will be visible for 24 hours",
       });
-      
+
       navigate("/");
     } catch (error: any) {
       console.error("Error creating story:", error);

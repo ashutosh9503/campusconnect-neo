@@ -10,7 +10,7 @@ export interface Message {
   created_at: string;
   sender_profile?: {
     username: string | null;
-    display_name: string | null;
+    full_name: string | null;
     avatar_url: string | null;
   };
 }
@@ -27,7 +27,7 @@ export interface Conversation {
   other_user?: {
     user_id: string;
     username: string | null;
-    display_name: string | null;
+    full_name: string | null;
     avatar_url: string | null;
   };
 }
@@ -45,17 +45,18 @@ export function useConversations() {
 
     try {
       // Get conversations the user is part of
-      const { data: participantData } = await supabase
-        .from("conversation_participants")
+      const { data: memberData } = await supabase
+        .from("conversation_members")
         .select("conversation_id")
         .eq("user_id", user.id);
 
-      if (!participantData?.length) {
+      if (!memberData?.length) {
         setLoading(false);
+        setConversations([]);
         return;
       }
 
-      const conversationIds = participantData.map(p => p.conversation_id);
+      const conversationIds = memberData.map(p => p.conversation_id);
 
       // Get conversation details
       const { data: convData } = await supabase
@@ -70,19 +71,27 @@ export function useConversations() {
           let otherUser = null;
 
           if (!conv.is_group) {
-            const { data: participants } = await supabase
-              .from("conversation_participants")
+            const { data: members } = await supabase
+              .from("conversation_members")
               .select("user_id")
               .eq("conversation_id", conv.id)
               .neq("user_id", user.id);
 
-            if (participants?.[0]) {
+            if (members?.[0]) {
               const { data: profile } = await supabase
                 .from("profiles")
-                .select("user_id, username, display_name, avatar_url")
-                .eq("user_id", participants[0].user_id)
+                .select("id, username, full_name, avatar_url") // Fixed: user_id -> id based on schema
+                .eq("id", members[0].user_id)
                 .single();
-              otherUser = profile;
+
+              if (profile) {
+                otherUser = {
+                  user_id: profile.id,
+                  username: profile.username,
+                  full_name: profile.full_name,
+                  avatar_url: profile.avatar_url
+                };
+              }
             }
           }
 
@@ -104,7 +113,7 @@ export function useConversations() {
         })
       );
 
-      setConversations(enrichedConversations);
+      setConversations(enrichedConversations as Conversation[]);
     } catch (err) {
       console.error("Error fetching conversations:", err);
     } finally {
@@ -126,7 +135,7 @@ export function useMessages(conversationId: string) {
   const [otherUser, setOtherUser] = useState<{
     user_id: string;
     username: string | null;
-    display_name: string | null;
+    full_name: string | null;
     avatar_url: string | null;
   } | null>(null);
 
@@ -145,12 +154,16 @@ export function useMessages(conversationId: string) {
 
       // Fetch sender profiles
       const senderIds = [...new Set(messagesData?.map(m => m.sender_id) || [])];
-      const { data: profilesData } = await supabase
-        .from("profiles")
-        .select("user_id, username, display_name, avatar_url")
-        .in("user_id", senderIds);
 
-      const profilesMap = new Map(profilesData?.map(p => [p.user_id, p]));
+      let profilesMap = new Map();
+      if (senderIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("id, username, full_name, avatar_url")
+          .in("id", senderIds); // id joins to sender_id (auth.uid) based on schema
+
+        profilesMap = new Map(profilesData?.map(p => [p.id, p]));
+      }
 
       const enrichedMessages = messagesData?.map(msg => ({
         ...msg,
@@ -160,19 +173,27 @@ export function useMessages(conversationId: string) {
       setMessages(enrichedMessages);
 
       // Get other user for 1-on-1 chat header
-      const { data: participants } = await supabase
-        .from("conversation_participants")
+      const { data: members } = await supabase
+        .from("conversation_members")
         .select("user_id")
         .eq("conversation_id", conversationId)
         .neq("user_id", user.id);
 
-      if (participants?.[0]) {
+      if (members?.[0]) {
         const { data: profile } = await supabase
           .from("profiles")
-          .select("user_id, username, display_name, avatar_url")
-          .eq("user_id", participants[0].user_id)
+          .select("id, username, full_name, avatar_url")
+          .eq("id", members[0].user_id)
           .single();
-        setOtherUser(profile);
+
+        if (profile) {
+          setOtherUser({
+            user_id: profile.id,
+            username: profile.username,
+            full_name: profile.full_name,
+            avatar_url: profile.avatar_url
+          });
+        }
       }
     } catch (err) {
       console.error("Error fetching messages:", err);
@@ -197,15 +218,22 @@ export function useMessages(conversationId: string) {
         },
         async (payload) => {
           const newMsg = payload.new as Message;
-          
+
           // Fetch sender profile
           const { data: profile } = await supabase
             .from("profiles")
-            .select("user_id, username, display_name, avatar_url")
-            .eq("user_id", newMsg.sender_id)
+            .select("id, username, full_name, avatar_url")
+            .eq("id", newMsg.sender_id)
             .single();
 
-          setMessages(prev => [...prev, { ...newMsg, sender_profile: profile }]);
+          setMessages(prev => [...prev, {
+            ...newMsg,
+            sender_profile: profile ? {
+              username: profile.username,
+              full_name: profile.full_name,
+              avatar_url: profile.avatar_url
+            } : undefined
+          }]);
         }
       )
       .subscribe();
@@ -218,6 +246,23 @@ export function useMessages(conversationId: string) {
   const sendMessage = async (content: string) => {
     if (!user || !content.trim()) return { error: new Error("Invalid") };
 
+    const tempId = crypto.randomUUID();
+    const optimisticMessage: Message = {
+      id: tempId,
+      content: content.trim(),
+      sender_id: user.id,
+      conversation_id: conversationId,
+      created_at: new Date().toISOString(),
+      sender_profile: {
+        username: user.email?.split("@")[0] || "user",
+        full_name: user.email?.split("@")[0] || "User",
+        avatar_url: null
+      }
+    };
+
+    // Optimistic update
+    setMessages(prev => [...prev, optimisticMessage]);
+
     try {
       const { error } = await supabase.from("messages").insert({
         conversation_id: conversationId,
@@ -225,7 +270,11 @@ export function useMessages(conversationId: string) {
         content: content.trim(),
       });
 
-      if (error) throw error;
+      if (error) {
+        // Rollback on error
+        setMessages(prev => prev.filter(m => m.id !== tempId));
+        throw error;
+      }
 
       // Update conversation timestamp
       await supabase
@@ -251,14 +300,14 @@ export function useStartConversation() {
     try {
       // Check if conversation already exists
       const { data: myConvs } = await supabase
-        .from("conversation_participants")
+        .from("conversation_members")
         .select("conversation_id")
         .eq("user_id", user.id);
 
       if (myConvs?.length) {
         const convIds = myConvs.map(c => c.conversation_id);
         const { data: theirConvs } = await supabase
-          .from("conversation_participants")
+          .from("conversation_members")
           .select("conversation_id")
           .eq("user_id", otherUserId)
           .in("conversation_id", convIds);
@@ -278,23 +327,26 @@ export function useStartConversation() {
         }
       }
 
-      // Create new conversation
-      const { data: newConv, error: convError } = await supabase
+      // Create new conversation with strict handling
+      const newConversationId = crypto.randomUUID();
+
+      const { error: convError } = await supabase
         .from("conversations")
-        .insert({ is_group: false })
-        .select()
-        .single();
+        .insert({ id: newConversationId, is_group: false });
 
       if (convError) throw convError;
 
       // Add participants
-      await supabase.from("conversation_participants").insert([
-        { conversation_id: newConv.id, user_id: user.id },
-        { conversation_id: newConv.id, user_id: otherUserId },
+      const { error: memberError } = await supabase.from("conversation_members").insert([
+        { conversation_id: newConversationId, user_id: user.id },
+        { conversation_id: newConversationId, user_id: otherUserId },
       ]);
 
-      return { conversationId: newConv.id, error: null };
+      if (memberError) throw memberError;
+
+      return { conversationId: newConversationId, error: null };
     } catch (err: any) {
+      console.error("Start conversation error:", err);
       return { conversationId: null, error: err };
     }
   };

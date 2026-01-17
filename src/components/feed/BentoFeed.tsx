@@ -41,9 +41,9 @@ export function BentoFeed() {
   const formattedPosts = posts.map((post, index) => ({
     id: post.id,
     author: {
-      name: post.profile?.display_name || post.profile?.username || "User",
+      name: post.profile?.full_name || post.profile?.username || "User",
       username: post.profile?.username || "user",
-      avatar: (post.profile?.username || post.profile?.display_name || "U").slice(0, 2).toUpperCase(),
+      avatar: (post.profile?.username || post.profile?.full_name || "U").slice(0, 2).toUpperCase(),
       stream: post.profile?.stream || "CS",
       year: post.profile?.year || "TY",
     },

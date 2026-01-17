@@ -11,7 +11,7 @@ interface AuthContextType {
   verifyOtp: (email: string, token: string) => Promise<{ error: Error | null }>;
   // Password methods
   signInWithPassword: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUpWithPassword: (email: string, password: string) => Promise<{ error: Error | null; needsConfirmation?: boolean }>;
+  signUpWithPassword: (email: string, password: string, metadata?: Record<string, any>) => Promise<{ error: Error | null; needsConfirmation?: boolean }>;
   signOut: () => Promise<void>;
 }
 
@@ -20,7 +20,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Helper to get user-friendly error messages
 function getAuthErrorMessage(error: any): string {
   const message = error?.message?.toLowerCase() || "";
-  
+
   if (message.includes("invalid login credentials")) {
     return "Invalid email or password. Please check your credentials.";
   }
@@ -45,7 +45,7 @@ function getAuthErrorMessage(error: any): string {
   if (message.includes("email")) {
     return "Please enter a valid email address.";
   }
-  
+
   return error?.message || "An unexpected error occurred. Please try again.";
 }
 
@@ -61,26 +61,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
-
-        // Create profile on first sign up
-        if (event === "SIGNED_IN" && session?.user) {
-          // Use setTimeout to avoid blocking the auth flow
-          setTimeout(async () => {
-            const { data: existingProfile } = await supabase
-              .from("profiles")
-              .select("id")
-              .eq("user_id", session.user.id)
-              .single();
-
-            if (!existingProfile) {
-              await supabase.from("profiles").insert({
-                user_id: session.user.id,
-                username: session.user.email?.split("@")[0] || null,
-                display_name: session.user.email?.split("@")[0] || null,
-              });
-            }
-          }, 0);
-        }
       }
     );
 
@@ -142,29 +122,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signUpWithPassword = async (email: string, password: string) => {
+  const signUpWithPassword = async (email: string, password: string, metadata?: Record<string, any>) => {
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: window.location.origin,
+          data: metadata,
         },
       });
-      
+
       if (error) {
         return { error: new Error(getAuthErrorMessage(error)) };
       }
-      
+
       // Check if email confirmation is needed
       // If user exists but identities is empty, user already exists
       if (data.user && data.user.identities?.length === 0) {
         return { error: new Error("An account with this email already exists. Please login instead.") };
       }
-      
+
       // Check if confirmation is needed (user created but not confirmed)
       const needsConfirmation = data.user && !data.session;
-      
+
       return { error: null, needsConfirmation };
     } catch (err: any) {
       return { error: new Error(getAuthErrorMessage(err)) };
@@ -176,15 +157,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      session, 
-      loading, 
-      sendOtp, 
-      verifyOtp, 
+    <AuthContext.Provider value={{
+      user,
+      session,
+      loading,
+      sendOtp,
+      verifyOtp,
       signInWithPassword,
       signUpWithPassword,
-      signOut 
+      signOut
     }}>
       {children}
     </AuthContext.Provider>

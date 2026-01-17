@@ -1,17 +1,18 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { 
-  Home, 
-  MessageSquare, 
-  Bell, 
-  Users, 
-  Calendar, 
-  Bookmark, 
-  TrendingUp, 
-  Settings, 
+import {
+  Home,
+  MessageSquare,
+  Bell,
+  Users,
+  Calendar,
+  Bookmark,
+  TrendingUp,
+  Settings,
   User,
   Plus,
   LogOut,
-  LogIn
+  LogIn,
+  Search
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,6 +20,7 @@ import { useProfile } from "@/hooks/useProfile";
 
 const navItems = [
   { icon: Home, label: "Feed", path: "/" },
+  { icon: Search, label: "Search", path: "/search" },
   { icon: MessageSquare, label: "Messages", path: "/chat" },
   { icon: Bell, label: "Notifications", path: "/notifications" },
   { icon: Users, label: "Groups", path: "/groups" },
@@ -40,7 +42,7 @@ export function Sidebar() {
     navigate("/login");
   };
 
-  const displayName = profile?.display_name || profile?.username || user?.email?.split("@")[0] || "User";
+  const displayName = profile?.full_name || profile?.username || user?.email?.split("@")[0] || "User";
   const avatarInitials = (profile?.username || user?.email || "U").slice(0, 2).toUpperCase();
 
   return (

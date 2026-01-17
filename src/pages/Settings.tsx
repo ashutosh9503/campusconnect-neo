@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { 
-  User, 
-  Bell, 
-  Lock, 
-  Smartphone, 
-  Moon, 
-  LogOut, 
+import {
+  User,
+  Bell,
+  Lock,
+  Smartphone,
+  Moon,
+  LogOut,
   ChevronRight,
   Shield,
   HelpCircle,
@@ -78,7 +78,7 @@ export default function Settings() {
   const { canInstall, isInstalled, install } = usePwaInstall();
 
   const [editMode, setEditMode] = useState(false);
-  const [displayName, setDisplayName] = useState(profile?.display_name || "");
+  const [fullName, setFullName] = useState(profile?.full_name || "");
   const [bio, setBio] = useState(profile?.bio || "");
   const [stream, setStream] = useState<StreamType>(profile?.stream || "CS");
   const [year, setYear] = useState<YearType>(profile?.year || "FY");
@@ -88,7 +88,7 @@ export default function Settings() {
   // Update form when profile loads
   useEffect(() => {
     if (profile) {
-      setDisplayName(profile.display_name || "");
+      setFullName(profile.full_name || "");
       setBio(profile.bio || "");
       setStream(profile.stream || "CS");
       setYear(profile.year || "FY");
@@ -98,7 +98,7 @@ export default function Settings() {
   const handleSaveProfile = async () => {
     setSaving(true);
     const { error } = await updateProfile({
-      display_name: displayName,
+      full_name: fullName,
       bio,
       stream,
       year,
@@ -183,7 +183,7 @@ export default function Settings() {
       toast({ title: "App is already installed!" });
       return;
     }
-    
+
     if (canInstall) {
       const success = await install();
       if (success) {
@@ -202,9 +202,9 @@ export default function Settings() {
     {
       title: "APP",
       items: [
-        { 
-          icon: isInstalled ? Smartphone : Download, 
-          label: isInstalled ? "App Installed" : "Install App", 
+        {
+          icon: isInstalled ? Smartphone : Download,
+          label: isInstalled ? "App Installed" : "Install App",
           description: isInstalled ? "CampusConnect is installed on your device" : "Add CampusConnect to your home screen",
           action: handleInstallApp,
           highlight: canInstall,
@@ -293,11 +293,11 @@ export default function Settings() {
               <>
                 {/* Display Name */}
                 <div>
-                  <label className="font-mono text-xs text-muted-foreground">DISPLAY NAME</label>
+                  <label className="font-mono text-xs text-muted-foreground">FULL NAME</label>
                   <input
                     type="text"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
                     className="w-full mt-1 p-3 bg-background border-2 border-foreground font-mono text-sm focus:outline-none focus:border-primary"
                   />
                 </div>
@@ -345,7 +345,7 @@ export default function Settings() {
               </>
             ) : (
               <div className="space-y-2">
-                <p className="font-mono text-sm text-foreground">{profile?.display_name || "No display name"}</p>
+                <p className="font-mono text-sm text-foreground">{profile?.full_name || "No name"}</p>
                 <p className="font-mono text-xs text-muted-foreground">{profile?.bio || "No bio yet"}</p>
                 <div className="flex gap-2">
                   <span className="px-2 py-1 bg-primary/20 text-primary font-mono text-[10px] border border-primary">
