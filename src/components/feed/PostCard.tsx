@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { MessageSquare, Share2, Bookmark, MoreHorizontal } from "lucide-react";
+import { MessageSquare, Share2, Bookmark, MoreHorizontal, Send, X, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useReaction, useSavePost } from "@/hooks/usePosts";
+import { useComments } from "@/hooks/useComments";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
@@ -53,11 +54,15 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
   const { toast } = useToast();
   const { addReaction, removeReaction } = useReaction(post.id);
   const { savePost, unsavePost } = useSavePost(post.id);
+  const { comments, loading: commentsLoading, addComment, deleteComment } = useComments(post.id);
   
   const [reactions, setReactions] = useState(post.reactions);
   const [activeReaction, setActiveReaction] = useState<ReactionType | null>(post.user_reaction || null);
   const [saved, setSaved] = useState(post.is_saved || false);
   const [loading, setLoading] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [newComment, setNewComment] = useState("");
+  const [submittingComment, setSubmittingComment] = useState(false);
 
   const handleReaction = async (type: ReactionType) => {
     if (!user) {
@@ -72,14 +77,12 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
     setLoading(true);
     
     if (activeReaction === type) {
-      // Remove reaction
       const { error } = await removeReaction();
       if (!error) {
         setReactions(prev => ({ ...prev, [type]: Math.max(0, prev[type] - 1) }));
         setActiveReaction(null);
       }
     } else {
-      // Add/change reaction
       if (activeReaction) {
         setReactions(prev => ({ 
           ...prev, 
@@ -136,6 +139,47 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
         description: "Could not copy link to clipboard",
         variant: "destructive" 
       });
+    }
+  };
+
+  const handleSubmitComment = async () => {
+    if (!user) {
+      toast({
+        title: "Login required",
+        description: "Please login to comment",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!newComment.trim()) return;
+
+    setSubmittingComment(true);
+    const { error } = await addComment(newComment);
+    setSubmittingComment(false);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      setNewComment("");
+      if (onUpdate) onUpdate();
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    const { error } = await deleteComment(commentId);
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      if (onUpdate) onUpdate();
     }
   };
 
@@ -219,9 +263,15 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
 
       {/* Actions */}
       <div className="flex items-center justify-between pt-3 border-t-2 border-border">
-        <button className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+        <button 
+          onClick={() => setShowComments(!showComments)}
+          className={cn(
+            "flex items-center gap-2 transition-colors",
+            showComments ? "text-primary" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
           <MessageSquare className="w-4 h-4" />
-          <span className="font-mono text-xs">{post.comments}</span>
+          <span className="font-mono text-xs">{comments.length || post.comments}</span>
         </button>
         <button 
           onClick={handleShare}
@@ -243,6 +293,73 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
           <span className="font-mono text-xs">{saved ? "Saved" : "Save"}</span>
         </button>
       </div>
+
+      {/* Comments Section */}
+      {showComments && (
+        <div className="mt-4 pt-4 border-t-2 border-border">
+          {/* Comment Input */}
+          <div className="flex gap-2 mb-4">
+            <input
+              type="text"
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              placeholder="Add a comment..."
+              className="flex-1 px-3 py-2 bg-card border-2 border-foreground font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+              onKeyDown={(e) => e.key === "Enter" && handleSubmitComment()}
+            />
+            <button
+              onClick={handleSubmitComment}
+              disabled={submittingComment || !newComment.trim()}
+              className="px-3 py-2 bg-primary text-primary-foreground border-2 border-foreground disabled:opacity-50"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Comments List */}
+          <div className="space-y-3 max-h-60 overflow-y-auto">
+            {commentsLoading ? (
+              <p className="font-mono text-xs text-muted-foreground text-center py-2">Loading...</p>
+            ) : comments.length === 0 ? (
+              <p className="font-mono text-xs text-muted-foreground text-center py-2">No comments yet</p>
+            ) : (
+              comments.map((comment) => (
+                <div key={comment.id} className="flex gap-2 group">
+                  <Link to={`/profile/${comment.profile?.username || "user"}`}>
+                    <div className="w-8 h-8 bg-muted border border-foreground flex items-center justify-center flex-shrink-0">
+                      <span className="font-display text-[10px] text-foreground">
+                        {(comment.profile?.username || "U").slice(0, 2).toUpperCase()}
+                      </span>
+                    </div>
+                  </Link>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <Link 
+                        to={`/profile/${comment.profile?.username || "user"}`}
+                        className="font-mono text-xs text-foreground hover:underline"
+                      >
+                        @{comment.profile?.username || "user"}
+                      </Link>
+                      <span className="font-mono text-[10px] text-muted-foreground">
+                        {new Date(comment.created_at).toLocaleDateString()}
+                      </span>
+                      {user?.id === comment.user_id && (
+                        <button 
+                          onClick={() => handleDeleteComment(comment.id)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Trash2 className="w-3 h-3 text-destructive" />
+                        </button>
+                      )}
+                    </div>
+                    <p className="font-mono text-xs text-muted-foreground">{comment.content}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </article>
   );
 }
