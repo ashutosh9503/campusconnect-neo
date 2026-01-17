@@ -349,30 +349,39 @@ export type Database = {
       }
       notifications: {
         Row: {
+          actor_id: string | null
           created_at: string
           id: string
-          is_read: boolean
           message: string | null
+          message_id: string | null
+          post_id: string | null
+          read: boolean
           related_id: string | null
           title: string
           type: string
           user_id: string
         }
         Insert: {
+          actor_id?: string | null
           created_at?: string
           id?: string
-          is_read?: boolean
           message?: string | null
+          message_id?: string | null
+          post_id?: string | null
+          read?: boolean
           related_id?: string | null
           title: string
           type: string
           user_id: string
         }
         Update: {
+          actor_id?: string | null
           created_at?: string
           id?: string
-          is_read?: boolean
           message?: string | null
+          message_id?: string | null
+          post_id?: string | null
+          read?: boolean
           related_id?: string | null
           title?: string
           type?: string

@@ -4,19 +4,36 @@ import { Search, Plus, Users, User } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { useConversations } from "@/hooks/useChat";
+import { useConversations, useStartConversation } from "@/hooks/useChat";
+import { UserSearch } from "@/components/UserSearch";
+import { toast } from "sonner";
 
 export default function Chat() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
-  const { conversations, loading } = useConversations();
+  const [showNewChat, setShowNewChat] = useState(false);
+  const { conversations, loading, refetch } = useConversations();
+  const { startConversation } = useStartConversation();
 
   useEffect(() => {
     if (!authLoading && !user) {
       navigate("/login");
     }
   }, [user, authLoading, navigate]);
+
+  const handleStartConversation = async (userId: string) => {
+    const { conversationId, error } = await startConversation(userId);
+    if (error) {
+      toast.error("Failed to start conversation");
+      return;
+    }
+    if (conversationId) {
+      setShowNewChat(false);
+      await refetch();
+      navigate(`/chat/${conversationId}`);
+    }
+  };
 
   const filteredConversations = conversations.filter(conv => {
     const name = conv.name || conv.other_user?.display_name || conv.other_user?.username || "";
@@ -54,12 +71,26 @@ export default function Chat() {
           <div className="p-4 border-b-2 border-foreground">
             <div className="flex items-center justify-between mb-4">
               <h1 className="font-display text-xl text-foreground">MESSAGES</h1>
-              <button className="p-2 bg-primary text-primary-foreground border-2 border-foreground hover-brutal">
+              <button 
+                onClick={() => setShowNewChat(!showNewChat)}
+                className="p-2 bg-primary text-primary-foreground border-2 border-foreground hover-brutal"
+              >
                 <Plus className="w-5 h-5" />
               </button>
             </div>
             
-            {/* Search */}
+            {/* New Chat - User Search */}
+            {showNewChat && (
+              <div className="mb-4">
+                <p className="font-mono text-xs text-muted-foreground mb-2">START NEW CHAT:</p>
+                <UserSearch 
+                  onSelectUser={handleStartConversation}
+                  placeholder="Search users to chat..."
+                />
+              </div>
+            )}
+            
+            {/* Search Conversations */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
@@ -76,7 +107,19 @@ export default function Chat() {
           <div className="flex-1 overflow-y-auto">
             {filteredConversations.length === 0 ? (
               <div className="text-center py-8 font-mono text-muted-foreground">
-                No conversations yet
+                {conversations.length === 0 ? (
+                  <>
+                    <p className="mb-2">No conversations yet</p>
+                    <button 
+                      onClick={() => setShowNewChat(true)}
+                      className="text-primary hover:underline"
+                    >
+                      Start a new chat
+                    </button>
+                  </>
+                ) : (
+                  "No matching conversations"
+                )}
               </div>
             ) : (
               filteredConversations.map((conv) => {

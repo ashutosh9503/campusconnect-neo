@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { 
   User, 
@@ -11,7 +11,8 @@ import {
   Shield,
   HelpCircle,
   Save,
-  Camera
+  Camera,
+  Download
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,11 +28,54 @@ type YearType = Database["public"]["Enums"]["year_type"];
 const streamOptions: StreamType[] = ["CS", "IT", "EXTC", "MECH", "CIVIL", "OTHER"];
 const yearOptions: YearType[] = ["FY", "SY", "TY", "FINAL"];
 
+// PWA Install Hook
+function usePwaInstall() {
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
+
+  useEffect(() => {
+    // Check if already installed
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsInstalled(true);
+    }
+
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handler);
+
+    window.addEventListener('appinstalled', () => {
+      setIsInstalled(true);
+      setInstallPrompt(null);
+    });
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+    };
+  }, []);
+
+  const install = async () => {
+    if (!installPrompt) return false;
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setInstallPrompt(null);
+      return true;
+    }
+    return false;
+  };
+
+  return { canInstall: !!installPrompt && !isInstalled, isInstalled, install };
+}
+
 export default function Settings() {
   const { signOut } = useAuth();
   const { profile, updateProfile, refetch } = useProfile();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { canInstall, isInstalled, install } = usePwaInstall();
 
   const [editMode, setEditMode] = useState(false);
   const [displayName, setDisplayName] = useState(profile?.display_name || "");
@@ -42,14 +86,14 @@ export default function Settings() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   // Update form when profile loads
-  useState(() => {
+  useEffect(() => {
     if (profile) {
       setDisplayName(profile.display_name || "");
       setBio(profile.bio || "");
       setStream(profile.stream || "CS");
       setYear(profile.year || "FY");
     }
-  });
+  }, [profile]);
 
   const handleSaveProfile = async () => {
     setSaving(true);
@@ -134,11 +178,37 @@ export default function Settings() {
     navigate("/login");
   };
 
+  const handleInstallApp = async () => {
+    if (isInstalled) {
+      toast({ title: "App is already installed!" });
+      return;
+    }
+    
+    if (canInstall) {
+      const success = await install();
+      if (success) {
+        toast({ title: "App installed successfully! 🎉" });
+      }
+    } else {
+      // Show manual install instructions
+      toast({
+        title: "Install CampusConnect",
+        description: "On iOS: tap Share → Add to Home Screen. On Android: tap menu → Install App",
+      });
+    }
+  };
+
   const settingsGroups = [
     {
       title: "APP",
       items: [
-        { icon: Smartphone, label: "Install App", description: "Add CampusConnect to your home screen" },
+        { 
+          icon: isInstalled ? Smartphone : Download, 
+          label: isInstalled ? "App Installed" : "Install App", 
+          description: isInstalled ? "CampusConnect is installed on your device" : "Add CampusConnect to your home screen",
+          action: handleInstallApp,
+          highlight: canInstall,
+        },
         { icon: Moon, label: "Appearance", description: "Always dark mode (OLED optimized)" },
       ],
     },
@@ -156,7 +226,6 @@ export default function Settings() {
       ],
     },
   ];
-
   return (
     <MainLayout showSidebars={false}>
       <div className="min-h-screen max-w-2xl mx-auto">
@@ -297,28 +366,29 @@ export default function Settings() {
             <div key={group.title}>
               <h2 className="font-display text-xs text-muted-foreground mb-2">{group.title}</h2>
               <div className="border-2 border-foreground divide-y-2 divide-border">
-                {group.items.map((item) => (
+                {group.items.map((item: any) => (
                   <button
                     key={item.label}
                     onClick={item.action}
                     className={cn(
                       "w-full flex items-center gap-4 p-4 hover:bg-muted transition-colors text-left",
-                      item.danger && "hover:bg-destructive/10"
+                      item.danger && "hover:bg-destructive/10",
+                      item.highlight && "bg-primary/10"
                     )}
                   >
                     <div className={cn(
                       "w-10 h-10 border-2 border-foreground flex items-center justify-center",
-                      item.danger ? "bg-destructive/20" : "bg-muted"
+                      item.danger ? "bg-destructive/20" : item.highlight ? "bg-primary/20" : "bg-muted"
                     )}>
                       <item.icon className={cn(
                         "w-5 h-5",
-                        item.danger ? "text-destructive" : "text-foreground"
+                        item.danger ? "text-destructive" : item.highlight ? "text-primary" : "text-foreground"
                       )} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className={cn(
                         "font-mono text-sm",
-                        item.danger ? "text-destructive" : "text-foreground"
+                        item.danger ? "text-destructive" : item.highlight ? "text-primary" : "text-foreground"
                       )}>
                         {item.label}
                       </p>
