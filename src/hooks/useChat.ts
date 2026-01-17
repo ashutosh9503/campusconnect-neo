@@ -8,6 +8,9 @@ export interface Message {
   sender_id: string;
   conversation_id: string;
   created_at: string;
+  media_url?: string | null;
+  media_type?: "image" | "video" | null;
+  deleted?: boolean;
   sender_profile?: {
     username: string | null;
     full_name: string | null;
@@ -80,7 +83,7 @@ export function useConversations() {
             if (members?.[0]) {
               const { data: profile } = await supabase
                 .from("profiles")
-                .select("id, username, full_name, avatar_url") // Fixed: user_id -> id based on schema
+                .select("id, username, full_name, avatar_url")
                 .eq("id", members[0].user_id)
                 .single();
 
@@ -98,16 +101,24 @@ export function useConversations() {
           // Get last message
           const { data: lastMsg } = await supabase
             .from("messages")
-            .select("content, created_at")
+            .select("*")
             .eq("conversation_id", conv.id)
             .order("created_at", { ascending: false })
             .limit(1)
             .single();
 
+          let displayMessage = "No messages yet";
+          if (lastMsg) {
+            const isDeleted = (lastMsg as any).deleted; // Cast if type missing
+            if (isDeleted) displayMessage = "Message deleted";
+            else if (lastMsg.content) displayMessage = lastMsg.content;
+            else if ((lastMsg as any).media_url) displayMessage = "📷 Sent an image";
+          }
+
           return {
             ...conv,
             other_user: otherUser,
-            last_message: lastMsg?.content,
+            last_message: displayMessage,
             last_message_at: lastMsg?.created_at,
           };
         })
@@ -160,7 +171,7 @@ export function useMessages(conversationId: string) {
         const { data: profilesData } = await supabase
           .from("profiles")
           .select("id, username, full_name, avatar_url")
-          .in("id", senderIds); // id joins to sender_id (auth.uid) based on schema
+          .in("id", senderIds);
 
         profilesMap = new Map(profilesData?.map(p => [p.id, p]));
       }
@@ -170,7 +181,7 @@ export function useMessages(conversationId: string) {
         sender_profile: profilesMap.get(msg.sender_id) || null,
       })) || [];
 
-      setMessages(enrichedMessages);
+      setMessages(enrichedMessages as Message[]);
 
       // Get other user for 1-on-1 chat header
       const { data: members } = await supabase
@@ -211,29 +222,32 @@ export function useMessages(conversationId: string) {
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*", // Listen to all events (INSERT, UPDATE)
           schema: "public",
           table: "messages",
           filter: `conversation_id=eq.${conversationId}`,
         },
         async (payload) => {
-          const newMsg = payload.new as Message;
+          if (payload.eventType === "INSERT") {
+            const newMsg = payload.new as Message;
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("id, username, full_name, avatar_url")
+              .eq("id", newMsg.sender_id)
+              .single();
 
-          // Fetch sender profile
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("id, username, full_name, avatar_url")
-            .eq("id", newMsg.sender_id)
-            .single();
-
-          setMessages(prev => [...prev, {
-            ...newMsg,
-            sender_profile: profile ? {
-              username: profile.username,
-              full_name: profile.full_name,
-              avatar_url: profile.avatar_url
-            } : undefined
-          }]);
+            setMessages(prev => [...prev, {
+              ...newMsg,
+              sender_profile: profile ? {
+                username: profile.username,
+                full_name: profile.full_name,
+                avatar_url: profile.avatar_url
+              } : undefined
+            }]);
+          } else if (payload.eventType === "UPDATE") {
+            const updatedMsg = payload.new as Message;
+            setMessages(prev => prev.map(m => m.id === updatedMsg.id ? { ...m, ...updatedMsg } : m));
+          }
         }
       )
       .subscribe();
@@ -243,16 +257,26 @@ export function useMessages(conversationId: string) {
     };
   }, [conversationId, fetchMessages]);
 
-  const sendMessage = async (content: string) => {
-    if (!user || !content.trim()) return { error: new Error("Invalid") };
+  const sendMessage = async (content: string, file?: File | null) => {
+    if (!user || (!content.trim() && !file)) return { error: new Error("Invalid") };
 
     const tempId = crypto.randomUUID();
+    let mediaUrl = null;
+    let mediaType = null;
+
+    if (file) {
+      mediaType = file.type.startsWith("image/") ? "image" : "video";
+      // Optimistic preview could go here
+    }
+
     const optimisticMessage: Message = {
       id: tempId,
       content: content.trim(),
       sender_id: user.id,
       conversation_id: conversationId,
       created_at: new Date().toISOString(),
+      media_url: file ? URL.createObjectURL(file) : null, // Temp preview
+      media_type: mediaType as any,
       sender_profile: {
         username: user.email?.split("@")[0] || "user",
         full_name: user.email?.split("@")[0] || "User",
@@ -260,23 +284,36 @@ export function useMessages(conversationId: string) {
       }
     };
 
-    // Optimistic update
     setMessages(prev => [...prev, optimisticMessage]);
 
     try {
+      // Upload media if present
+      if (file) {
+        const fileExt = file.name.split(".").pop();
+        const fileName = `${conversationId}/${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from("chat-media")
+          .upload(fileName, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage
+          .from("chat-media")
+          .getPublicUrl(fileName);
+
+        mediaUrl = urlData.publicUrl;
+      }
+
       const { error } = await supabase.from("messages").insert({
         conversation_id: conversationId,
         sender_id: user.id,
         content: content.trim(),
-      });
+        media_url: mediaUrl,
+        media_type: mediaType,
+      } as any);
 
-      if (error) {
-        // Rollback on error
-        setMessages(prev => prev.filter(m => m.id !== tempId));
-        throw error;
-      }
+      if (error) throw error;
 
-      // Update conversation timestamp
       await supabase
         .from("conversations")
         .update({ updated_at: new Date().toISOString() })
@@ -284,11 +321,43 @@ export function useMessages(conversationId: string) {
 
       return { error: null };
     } catch (err: any) {
+      setMessages(prev => prev.filter(m => m.id !== tempId));
       return { error: err };
     }
   };
 
-  return { messages, loading, otherUser, sendMessage, refetch: fetchMessages };
+  const deleteMessage = async (messageId: string) => {
+    // Optimistic update
+    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, deleted: true } : m));
+
+    try {
+      const { error } = await supabase
+        .from("messages")
+        .update({ deleted: true } as any)
+        .eq("id", messageId);
+
+      if (error) throw error;
+    } catch (err) {
+      console.error("Failed to delete message:", err);
+      // Revert optimism if needed (complex without re-fetch)
+    }
+  };
+
+  const deleteConversation = async () => {
+    try {
+      const { error } = await supabase
+        .from("conversations")
+        .delete()
+        .eq("id", conversationId);
+
+      if (error) throw error;
+      return { error: null };
+    } catch (err: any) {
+      return { error: err };
+    }
+  };
+
+  return { messages, loading, otherUser, sendMessage, deleteMessage, deleteConversation, refetch: fetchMessages };
 }
 
 export function useStartConversation() {

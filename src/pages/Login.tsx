@@ -15,7 +15,7 @@ export default function Login() {
   const navigate = useNavigate();
   const { sendOtp, verifyOtp, signInWithPassword, user } = useAuth();
   const { toast } = useToast();
-  
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [otpCode, setOtpCode] = useState("");
@@ -47,7 +47,7 @@ export default function Login() {
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateEmail(email)) {
       toast({
         title: "Invalid email",
@@ -88,7 +88,7 @@ export default function Login() {
 
   const handleSendOtp = useCallback(async (e?: React.FormEvent) => {
     e?.preventDefault();
-    
+
     if (!validateEmail(email)) {
       toast({
         title: "Invalid email",
@@ -177,7 +177,7 @@ export default function Login() {
           <h1 className="font-display text-3xl text-foreground">
             CAMPUS<span className="text-primary">CONNECT</span>
           </h1>
-          <p className="font-mono text-sm text-muted-foreground mt-2">TSNDC Edition</p>
+          <p className="font-mono text-sm text-muted-foreground mt-2">TSDC Edition</p>
         </div>
 
         {step === "credentials" ? (
@@ -224,7 +224,7 @@ export default function Login() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@college.edu"
                     required
-                    className="w-full pl-10 pr-4 py-3 bg-background border-2 border-foreground font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+                    className="w-full pl-10 pr-4 py-3 bg-background border-2 border-foreground font-mono text-base md:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
                   />
                 </div>
               </div>
@@ -242,7 +242,7 @@ export default function Login() {
                       placeholder="••••••••"
                       required
                       minLength={6}
-                      className="w-full pl-10 pr-12 py-3 bg-background border-2 border-foreground font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+                      className="w-full pl-10 pr-12 py-3 bg-background border-2 border-foreground font-mono text-base md:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
                     />
                     <button
                       type="button"

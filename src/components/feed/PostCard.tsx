@@ -55,7 +55,7 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
   const { addReaction, removeReaction } = useReaction(post.id);
   const { savePost, unsavePost } = useSavePost(post.id);
   const { comments, loading: commentsLoading, addComment, deleteComment } = useComments(post.id);
-  
+
   const [reactions, setReactions] = useState(post.reactions);
   const [activeReaction, setActiveReaction] = useState<ReactionType | null>(post.user_reaction || null);
   const [saved, setSaved] = useState(post.is_saved || false);
@@ -75,7 +75,7 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
     }
 
     setLoading(true);
-    
+
     if (activeReaction === type) {
       const { error } = await removeReaction();
       if (!error) {
@@ -84,8 +84,8 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
       }
     } else {
       if (activeReaction) {
-        setReactions(prev => ({ 
-          ...prev, 
+        setReactions(prev => ({
+          ...prev,
           [activeReaction]: Math.max(0, prev[activeReaction] - 1),
         }));
       }
@@ -95,7 +95,7 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
         setActiveReaction(type);
       }
     }
-    
+
     setLoading(false);
   };
 
@@ -110,7 +110,7 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
     }
 
     setLoading(true);
-    
+
     if (saved) {
       const { error } = await unsavePost();
       if (!error) {
@@ -124,7 +124,7 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
         toast({ title: "Post saved!" });
       }
     }
-    
+
     setLoading(false);
   };
 
@@ -134,10 +134,10 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
       await navigator.clipboard.writeText(url);
       toast({ title: "Link copied to clipboard!" });
     } catch {
-      toast({ 
-        title: "Failed to copy", 
+      toast({
+        title: "Failed to copy",
         description: "Could not copy link to clipboard",
-        variant: "destructive" 
+        variant: "destructive"
       });
     }
   };
@@ -184,7 +184,7 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
   };
 
   return (
-    <article 
+    <article
       className={cn(
         "bento-item animate-fade-in",
         post.isSpan === "row" && "md:col-span-2",
@@ -194,7 +194,7 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
     >
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
-        <Link 
+        <Link
           to={`/profile/${post.author.username}`}
           className="flex items-center gap-3 hover:opacity-80 transition-opacity"
         >
@@ -225,16 +225,16 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
       {post.media && (
         <div className="mb-3 border-2 border-foreground overflow-hidden">
           {post.media.type === "image" ? (
-            <img 
-              src={post.media.url} 
-              alt="Post media" 
-              className="w-full h-48 object-cover"
+            <img
+              src={post.media.url}
+              alt="Post media"
+              className="w-full h-auto aspect-video object-cover"
             />
           ) : (
-            <video 
-              src={post.media.url} 
-              controls 
-              className="w-full h-48 object-cover"
+            <video
+              src={post.media.url}
+              controls
+              className="w-full h-auto aspect-video object-cover"
             />
           )}
         </div>
@@ -263,7 +263,7 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
 
       {/* Actions */}
       <div className="flex items-center justify-between pt-3 border-t-2 border-border">
-        <button 
+        <button
           onClick={() => setShowComments(!showComments)}
           className={cn(
             "flex items-center gap-2 transition-colors",
@@ -273,14 +273,14 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
           <MessageSquare className="w-4 h-4" />
           <span className="font-mono text-xs">{comments.length || post.comments}</span>
         </button>
-        <button 
+        <button
           onClick={handleShare}
           className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
         >
           <Share2 className="w-4 h-4" />
           <span className="font-mono text-xs">Share</span>
         </button>
-        <button 
+        <button
           onClick={handleSave}
           disabled={loading}
           className={cn(
@@ -334,7 +334,7 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
                   </Link>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <Link 
+                      <Link
                         to={`/profile/${comment.profile?.username || "user"}`}
                         className="font-mono text-xs text-foreground hover:underline"
                       >
@@ -344,7 +344,7 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
                         {new Date(comment.created_at).toLocaleDateString()}
                       </span>
                       {user?.id === comment.user_id && (
-                        <button 
+                        <button
                           onClick={() => handleDeleteComment(comment.id)}
                           className="opacity-0 group-hover:opacity-100 transition-opacity"
                         >

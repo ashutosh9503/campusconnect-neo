@@ -17,19 +17,19 @@ export function MobileNav() {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t-2 border-foreground md:hidden">
-      <div className="flex items-center justify-around py-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t-2 border-foreground md:hidden pb-safe">
+      <div className="flex items-center justify-around py-1 pb-2">
         {mobileNavItems.map((item) => {
           const isActive = location.pathname === item.path;
-          
+
           if (item.isAction) {
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                className="flex flex-col items-center justify-center w-14 h-14 -mt-6 bg-primary border-2 border-foreground shadow-brutal"
+                className="flex flex-col items-center justify-center w-16 h-16 -mt-8 bg-primary border-2 border-foreground shadow-brutal rounded-full"
               >
-                <item.icon className="w-6 h-6 text-primary-foreground" />
+                <item.icon className="w-8 h-8 text-primary-foreground" />
               </Link>
             );
           }
@@ -39,11 +39,11 @@ export function MobileNav() {
               key={item.path}
               to={item.path}
               className={cn(
-                "flex flex-col items-center gap-1 py-2 px-4 transition-colors",
+                "flex flex-col items-center gap-1 py-2 px-2 min-w-[64px] transition-colors",
                 isActive ? "text-primary" : "text-muted-foreground"
               )}
             >
-              <item.icon className="w-5 h-5" />
+              <item.icon className="w-6 h-6" />
               <span className="font-mono text-[10px]">{item.label}</span>
             </Link>
           );

@@ -65,7 +65,7 @@ export function SearchUsers({ className }: SearchUsersProps) {
           }}
           onFocus={() => setIsOpen(true)}
           placeholder="Search users or posts..."
-          className="w-full pl-10 pr-10 py-2 bg-background border-2 border-foreground font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+          className="w-full pl-10 pr-10 py-2 bg-background border-2 border-foreground font-mono text-base md:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
         />
         {query && (
           <button

@@ -24,7 +24,7 @@ export function TrendingPanel() {
       // Get posts from today
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
+
       const { count: todayPosts } = await supabase
         .from("posts")
         .select("*", { count: "exact", head: true })
@@ -80,7 +80,7 @@ export function TrendingPanel() {
       {/* Header */}
       <div className="flex items-center gap-2 mb-4">
         <TrendingUp className="w-5 h-5 text-primary" />
-        <h2 className="font-display text-sm text-foreground">TRENDING @ TSNDC</h2>
+        <h2 className="font-display text-sm text-foreground">TRENDING @ TSDC</h2>
       </div>
 
       {/* Trending Items */}

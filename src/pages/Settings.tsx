@@ -410,7 +410,7 @@ export default function Settings() {
             CampusConnect v1.0.0
           </p>
           <p className="font-mono text-[10px] text-muted-foreground mt-1">
-            TSNDC Edition • Made with 💚
+            TSDC Edition •
           </p>
         </div>
       </div>

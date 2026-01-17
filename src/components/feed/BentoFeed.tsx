@@ -61,7 +61,7 @@ export function BentoFeed() {
   }));
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 auto-rows-auto">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-2 md:p-4 auto-rows-auto mb-20 md:mb-0">
       {formattedPosts.map((post) => (
         <PostCard key={post.id} post={post} onUpdate={refetch} />
       ))}

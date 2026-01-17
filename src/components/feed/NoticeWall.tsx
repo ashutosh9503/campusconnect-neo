@@ -72,7 +72,7 @@ export function NoticeWall() {
         .limit(5);
 
       if (error) throw error;
-      
+
       if (data && data.length > 0) {
         setNotices(data as Notice[]);
       }
@@ -94,7 +94,7 @@ export function NoticeWall() {
           </div>
           <div>
             <h2 className="font-display text-lg text-foreground glitch-text">NOTICE WALL</h2>
-            <p className="font-mono text-[10px] text-muted-foreground">TSNDC OFFICIAL</p>
+            <p className="font-mono text-[10px] text-muted-foreground">TSDC OFFICIAL</p>
           </div>
         </div>
         {/* Scanlines overlay */}
@@ -106,10 +106,10 @@ export function NoticeWall() {
         {notices.map((notice) => {
           const config = typeConfig[notice.type];
           const Icon = config.icon;
-          
+
           return (
-            <div 
-              key={notice.id} 
+            <div
+              key={notice.id}
               className={`p-4 ${config.bg} border-l-4 ${config.border} hover:bg-opacity-20 transition-colors cursor-pointer`}
             >
               <div className="flex items-start gap-3">

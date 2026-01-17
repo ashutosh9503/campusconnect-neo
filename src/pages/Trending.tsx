@@ -13,7 +13,7 @@ export default function Trending() {
         <div className="p-4 border-b-2 border-foreground sticky top-0 bg-background z-10">
           <div className="flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-primary" />
-            <h1 className="font-display text-xl text-foreground">TRENDING @ TSNDC</h1>
+            <h1 className="font-display text-xl text-foreground">TRENDING @ TSDC</h1>
           </div>
           <p className="font-mono text-xs text-muted-foreground mt-1">
             Updated every hour

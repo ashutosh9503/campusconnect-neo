@@ -188,7 +188,7 @@ export default function CreatePost() {
             </div>
             <div>
               <p className="font-mono text-sm text-foreground">{user.email?.split("@")[0]}</p>
-              <p className="font-mono text-[10px] text-muted-foreground">TSNDC • 2024</p>
+              <p className="font-mono text-[10px] text-muted-foreground">TSDC • 2024</p>
             </div>
           </div>
 
@@ -197,7 +197,7 @@ export default function CreatePost() {
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="What's happening at campus? 🎓"
-            className="w-full min-h-[200px] p-4 bg-card border-2 border-foreground font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary resize-none"
+            className="w-full min-h-[200px] p-4 bg-card border-2 border-foreground font-mono text-base md:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary resize-none"
           />
 
           {/* Media Preview */}

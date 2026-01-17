@@ -349,7 +349,7 @@ export default function Signup() {
           <h1 className="font-display text-3xl text-foreground">
             CAMPUS<span className="text-primary">CONNECT</span>
           </h1>
-          <p className="font-mono text-sm text-muted-foreground mt-2">TSNDC Edition</p>
+          <p className="font-mono text-sm text-muted-foreground mt-2">TSDC Edition</p>
         </div>
 
         {step === "signup" && (
@@ -396,7 +396,7 @@ export default function Signup() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@college.edu"
                     required
-                    className="w-full pl-10 pr-4 py-3 bg-background border-2 border-foreground font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+                    className="w-full pl-10 pr-4 py-3 bg-background border-2 border-foreground font-mono text-base md:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
                   />
                 </div>
               </div>
@@ -415,7 +415,7 @@ export default function Signup() {
                         placeholder="••••••••"
                         required
                         minLength={6}
-                        className="w-full pl-10 pr-12 py-3 bg-background border-2 border-foreground font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+                        className="w-full pl-10 pr-12 py-3 bg-background border-2 border-foreground font-mono text-base md:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
                       />
                       <button
                         type="button"
@@ -441,7 +441,7 @@ export default function Signup() {
                         placeholder="••••••••"
                         required
                         minLength={6}
-                        className="w-full pl-10 pr-12 py-3 bg-background border-2 border-foreground font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+                        className="w-full pl-10 pr-12 py-3 bg-background border-2 border-foreground font-mono text-base md:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
                       />
                       <button
                         type="button"
@@ -501,7 +501,7 @@ export default function Signup() {
                   placeholder="yourname"
                   required
                   className={cn(
-                    "w-full pl-10 pr-4 py-3 bg-background border-2 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none",
+                    "w-full pl-10 pr-4 py-3 bg-background border-2 font-mono text-base md:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none",
                     usernameError ? "border-destructive" : "border-foreground focus:border-primary"
                   )}
                 />
