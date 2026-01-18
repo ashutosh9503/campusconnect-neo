@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -41,21 +41,45 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     const [isCameraOn, setIsCameraOn] = useState(true);
 
     const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
-    const signalingChannelRef = useRef<any>(null);
-    const activeCallUserIdRef = useRef<string | null>(null); // Who we are talking to
+    const activeCallUserIdRef = useRef<string | null>(null);
+    const iceCandidatesQueue = useRef<RTCIceCandidate[]>([]);
+
+    // Cleanup function to stop all tracks
+    const stopLocalStream = () => {
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+            setLocalStream(null);
+        }
+    };
+
+    const performCleanup = () => {
+        if (peerConnectionRef.current) {
+            peerConnectionRef.current.close();
+            peerConnectionRef.current = null;
+        }
+        setIsInCall(false);
+        setIsIncomingCall(false);
+        setCaller(null);
+        activeCallUserIdRef.current = null;
+        setRemoteStream(null);
+    };
+
+    // Watch for local stream to stop tracks when it changes (unmount/replace)
+    useEffect(() => {
+        return () => {
+            localStream?.getTracks().forEach(t => t.stop());
+        };
+    }, [localStream]);
 
     useEffect(() => {
         if (!user) return;
 
-        // Listen for incoming calls on my personal channel
         const channel = supabase.channel(`calls:${user.id}`)
-            .on("broadcast", { event: "offer" }, handleReceiveOffer)
-            .on("broadcast", { event: "answer" }, handleReceiveAnswer)
-            .on("broadcast", { event: "ice-candidate" }, handleReceiveIceCandidate)
-            .on("broadcast", { event: "end-call" }, handleReceiveEndCall)
+            .on("broadcast", { event: "offer" }, (payload) => handleReceiveOffer(payload))
+            .on("broadcast", { event: "answer" }, (payload) => handleReceiveAnswer(payload))
+            .on("broadcast", { event: "ice-candidate" }, (payload) => handleReceiveIceCandidate(payload))
+            .on("broadcast", { event: "end-call" }, () => handleReceiveEndCall())
             .subscribe();
-
-        signalingChannelRef.current = channel;
 
         return () => {
             supabase.removeChannel(channel);
@@ -63,7 +87,9 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     }, [user]);
 
     const createPeerConnection = () => {
-        if (peerConnectionRef.current) return peerConnectionRef.current;
+        if (peerConnectionRef.current) {
+            peerConnectionRef.current.close();
+        }
 
         const pc = new RTCPeerConnection(ICE_SERVERS);
 
@@ -82,16 +108,26 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
             setRemoteStream(event.streams[0]);
         };
 
+        pc.onconnectionstatechange = () => {
+            console.log("Connection state:", pc.connectionState);
+            if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+                performCleanup();
+                toast.info("Call disconnected");
+            }
+        };
+
         peerConnectionRef.current = pc;
         return pc;
     };
 
     const startCall = async (targetUserId: string, isVideo: boolean) => {
         if (!user) return;
+        performCleanup();
 
         setIsInCall(true);
         activeCallUserIdRef.current = targetUserId;
         setIsCameraOn(isVideo);
+        iceCandidatesQueue.current = [];
 
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
@@ -106,43 +142,31 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
 
-            // Send offer
             await supabase.channel(`calls:${targetUserId}`).send({
                 type: "broadcast",
                 event: "offer",
                 payload: {
                     offer,
-                    caller: { id: user.id, name: user.email /* Placeholder, better fetch profile */ },
+                    caller: { id: user.id, name: user.email },
                     isVideo
                 }
             });
 
         } catch (err) {
             console.error("Error starting call:", err);
-            endCall();
+            performCleanup();
             toast.error("Could not access camera/microphone");
         }
     };
 
     const handleReceiveOffer = async (payload: any) => {
-        // payload: { offer, caller, isVideo }
         const { offer, caller: incomingCaller, isVideo } = payload.payload;
-        console.log("Incoming call from", incomingCaller);
-
-        if (isInCall) {
-            // Busy
-            // Optionally send busy signal
-            return;
-        }
+        if (isInCall) return;
 
         setCaller(incomingCaller);
         setIsIncomingCall(true);
         activeCallUserIdRef.current = incomingCaller.id;
-        // We store the offer specifically to set it later
-        // For simplicity, we createPC now but don't setRemoteDesc until answer? 
-        // Actually typically we need to setRemoteDesc to generate answer.
 
-        // Store offer for 'accept'
         (window as any).pendingOffer = offer;
         (window as any).pendingIsVideo = isVideo;
     };
@@ -152,16 +176,18 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
         setIsIncomingCall(false);
         setIsInCall(true);
+        iceCandidatesQueue.current = [];
 
         const offer = (window as any).pendingOffer;
-        const isVideo = (window as any).pendingIsVideo; // The caller desired video
+        const isVideo = (window as any).pendingIsVideo;
 
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: true, // Always enable video capabilities? Or match request?
+                video: true,
                 audio: true
             });
             setLocalStream(stream);
+
             if (!isVideo) {
                 stream.getVideoTracks().forEach(t => t.enabled = false);
                 setIsCameraOn(false);
@@ -174,6 +200,13 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
 
+            while (iceCandidatesQueue.current.length > 0) {
+                const candidate = iceCandidatesQueue.current.shift();
+                if (candidate) {
+                    await pc.addIceCandidate(candidate);
+                }
+            }
+
             await supabase.channel(`calls:${activeCallUserIdRef.current}`).send({
                 type: "broadcast",
                 event: "answer",
@@ -182,7 +215,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
         } catch (err) {
             console.error("Error accepting call:", err);
-            endCall();
+            performCleanup();
         }
     };
 
@@ -194,29 +227,39 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
                 payload: { from: user?.id }
             });
         }
-        cleanup();
+        performCleanup();
     };
 
     const handleReceiveAnswer = async (payload: any) => {
         const { answer } = payload.payload;
         if (peerConnectionRef.current) {
             await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+            while (iceCandidatesQueue.current.length > 0) {
+                const candidate = iceCandidatesQueue.current.shift();
+                if (candidate) {
+                    await peerConnectionRef.current.addIceCandidate(candidate);
+                }
+            }
         }
     };
 
     const handleReceiveIceCandidate = async (payload: any) => {
         const { candidate } = payload.payload;
         if (peerConnectionRef.current) {
-            try {
-                await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
-            } catch (e) {
-                console.error("Error adding ice candidate", e);
+            if (peerConnectionRef.current.remoteDescription) {
+                try {
+                    await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+                } catch (e) {
+                    console.error("Error adding ice candidate", e);
+                }
+            } else {
+                iceCandidatesQueue.current.push(new RTCIceCandidate(candidate));
             }
         }
     };
 
     const handleReceiveEndCall = () => {
-        cleanup();
+        performCleanup();
         toast.info("Call ended");
     };
 
@@ -228,23 +271,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
                 payload: { from: user?.id }
             });
         }
-        cleanup();
-    };
-
-    const cleanup = () => {
-        if (localStream) {
-            localStream.getTracks().forEach(track => track.stop());
-        }
-        if (peerConnectionRef.current) {
-            peerConnectionRef.current.close();
-            peerConnectionRef.current = null;
-        }
-        setLocalStream(null);
-        setRemoteStream(null);
-        setIsInCall(false);
-        setIsIncomingCall(false);
-        setCaller(null);
-        activeCallUserIdRef.current = null;
+        performCleanup();
     };
 
     const toggleMic = () => {

@@ -105,8 +105,18 @@ export default function ChatConversation() {
     }
   };
 
-  const handleDoubleClick = (messageId: string) => {
-    addReaction(messageId, "❤️");
+  // Double tap logic
+  const lastTapRef = useRef<number>(0);
+  const handleMessageClick = (messageId: string) => {
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300;
+
+    if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
+      addReaction(messageId, "❤️");
+      lastTapRef.current = 0; // Reset
+    } else {
+      lastTapRef.current = now;
+    }
   };
 
   const displayName = otherUser?.full_name || otherUser?.username || "User";
@@ -195,9 +205,9 @@ export default function ChatConversation() {
                   className={cn("flex group", isOwn ? "justify-end" : "justify-start")}
                 >
                   <div
-                    onDoubleClick={() => handleDoubleClick(message.id)}
+                    onClick={() => handleMessageClick(message.id)}
                     className={cn(
-                      "max-w-[75%] relative p-3 border-2 border-foreground select-none",
+                      "max-w-[75%] relative p-3 border-2 border-foreground select-none cursor-pointer active:scale-[0.98] transition-transform",
                       isOwn ? "bg-primary text-primary-foreground" : "bg-card text-foreground"
                     )}
                   >
