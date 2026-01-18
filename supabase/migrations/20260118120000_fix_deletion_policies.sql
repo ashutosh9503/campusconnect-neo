@@ -4,12 +4,19 @@
 -- But existing code tries `delete().eq('id', id)`. This tries to wipe the row.
 -- We need RLS for DELETE on conversations.
 
-create policy "Users can delete conversations they created"
+-- Drop policies if they exist to avoid conflicts
+drop policy if exists "Users can delete conversations they participated in" on public.conversations;
+drop policy if exists "Users can delete messages in their conversations" on public.messages;
+
+-- Allow users to delete conversations they are part of
+create policy "Users can delete conversations they participated in"
   on public.conversations
   for delete
   using (
-    auth.uid() in (
-      select user_id from conversation_members where conversation_id = id
+    exists (
+      select 1 from conversation_members
+      where conversation_id = id
+      and user_id = auth.uid()
     )
   );
   

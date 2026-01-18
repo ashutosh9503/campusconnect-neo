@@ -357,15 +357,18 @@ export function useMessages(conversationId: string) {
 
   const deleteConversation = async () => {
     try {
-      // First manually delete messages to ensure cleanup if cascade fails or is delayed (though migration fixes this)
-      await supabase.from("messages").delete().eq("conversation_id", conversationId);
-
+      // We rely on ON DELETE CASCADE for messages.
+      // We only delete the conversation row.
       const { error } = await supabase
         .from("conversations")
         .delete()
         .eq("id", conversationId);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error deleting conversation:", error);
+        throw error;
+      };
+
       return { error: null };
     } catch (err: any) {
       return { error: err };
@@ -376,7 +379,7 @@ export function useMessages(conversationId: string) {
     // Optimistic reaction?
     // For now let's just push to DB and let realtime handle update
     try {
-      const { error } = await supabase.from('message_reactions').upsert({
+      const { error } = await supabase.from('message_reactions' as any).upsert({
         message_id: messageId,
         user_id: user?.id,
         emoji: emoji
