@@ -4,6 +4,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { CallProvider } from "@/contexts/CallContext";
+import { IncomingCallDialog } from "@/components/chat/IncomingCallDialog";
+import { VideoCallOverlay } from "@/components/chat/VideoCallOverlay";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -28,32 +31,36 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/chat" element={<Chat />} />
-            <Route path="/chat/:id" element={<ChatConversation />} />
-            <Route path="/create" element={<CreatePost />} />
-            <Route path="/stories/create" element={<CreateStory />} />
-            <Route path="/notifications" element={<Notifications />} />
-            <Route path="/groups" element={<Groups />} />
-            <Route path="/groups/:groupId/chat" element={<GroupChat />} />
-            <Route path="/events" element={<Events />} />
-            <Route path="/saved" element={<Saved />} />
-            <Route path="/trending" element={<Trending />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/search" element={<Search />} />
-            <Route path="/profile/:username" element={<UserProfile />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+      <CallProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <IncomingCallDialog />
+          <VideoCallOverlay />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/chat" element={<Chat />} />
+              <Route path="/chat/:id" element={<ChatConversation />} />
+              <Route path="/create" element={<CreatePost />} />
+              <Route path="/stories/create" element={<CreateStory />} />
+              <Route path="/notifications" element={<Notifications />} />
+              <Route path="/groups" element={<Groups />} />
+              <Route path="/groups/:groupId/chat" element={<GroupChat />} />
+              <Route path="/events" element={<Events />} />
+              <Route path="/saved" element={<Saved />} />
+              <Route path="/trending" element={<Trending />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/search" element={<Search />} />
+              <Route path="/profile/:username" element={<UserProfile />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </CallProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
