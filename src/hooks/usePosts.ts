@@ -9,8 +9,10 @@ export interface Post {
   id: string;
   user_id: string;
   content: string;
-  media_url: string | null;
-  media_type: string | null;
+  media?: {
+    type: "image" | "video";
+    url: string;
+  }[];
   created_at: string;
   updated_at: string;
   profile?: {
@@ -108,6 +110,30 @@ export function usePosts(userId?: string, limit = 20) {
         commentsData = data || [];
       }
 
+      // Fetch post media
+      let postMediaMap = new Map<string, { type: "image" | "video"; url: string }[]>();
+      if (postIds.length > 0) {
+        console.log("Fetching media for posts:", postIds);
+        const { data: mediaData, error: mediaError } = await supabase
+          .from("post_media" as any)
+          .select("post_id, url, type")
+          .in("post_id", postIds);
+
+        if (mediaError) {
+          console.error("Error fetching media:", mediaError);
+        } else {
+          console.log("Media data fetched:", mediaData);
+        }
+
+        if (mediaData) {
+          mediaData.forEach((m: any) => {
+            const current = postMediaMap.get(m.post_id) || [];
+            current.push({ type: m.type, url: m.url });
+            postMediaMap.set(m.post_id, current);
+          });
+        }
+      }
+
       // Aggregate reactions
       const reactionsMap = new Map<string, { brainrot: number; w: number; l: number; coffee: number }>();
       reactionsData.forEach((r: any) => {
@@ -124,14 +150,38 @@ export function usePosts(userId?: string, limit = 20) {
         commentsMap.set(c.post_id, (commentsMap.get(c.post_id) || 0) + 1);
       });
 
-      const enrichedPosts = postsData?.map(post => ({
-        ...post,
-        profile: profilesMap.get(post.user_id) || null,
-        reactions_count: reactionsMap.get(post.id) || { brainrot: 0, w: 0, l: 0, coffee: 0 },
-        comments_count: commentsMap.get(post.id) || 0,
-        user_reaction: userReactionsMap.get(post.id) || null,
-        is_saved: savedPostsSet.has(post.id),
-      })) || [];
+      const enrichedPosts = postsData?.map(post => {
+        // Combine legacy media columns with new media table
+        let media: { type: "image" | "video"; url: string }[] = postMediaMap.get(post.id) || [];
+
+        // DEBUG: Check why media isn't attaching
+        if (postMediaMap.has(post.id)) {
+          console.log(`[Enrich] Found media for post ${post.id}:`, media);
+        } else {
+          // Only log for the new post to avoid spam
+          if (post.content === "yoo" || media.length > 0) {
+            console.log(`[Enrich] No media found in map for post ${post.id}. Map has ${postMediaMap.size} entries.`);
+          }
+        }
+
+        // If no media in new table, but exists in legacy columns, use that (migration fallback)
+        if (media.length === 0 && post.media_url) {
+          media = [{
+            url: post.media_url,
+            type: (post.media_type as "image" | "video") || "image"
+          }];
+        }
+
+        return {
+          ...post,
+          profile: profilesMap.get(post.user_id) || null,
+          reactions_count: reactionsMap.get(post.id) || { brainrot: 0, w: 0, l: 0, coffee: 0 },
+          comments_count: commentsMap.get(post.id) || 0,
+          user_reaction: userReactionsMap.get(post.id) || null,
+          is_saved: savedPostsSet.has(post.id),
+          media,
+        };
+      }) || [];
 
       setPosts(enrichedPosts);
     } catch (err: any) {
@@ -184,16 +234,45 @@ export function useSavedPosts() {
       if (userIds.length > 0) {
         const { data: profilesData } = await supabase
           .from("profiles")
-          .select("id, username, display_name, avatar_url, stream, year")
+          .select("id, username, full_name, avatar_url, stream, year")
           .in("id", userIds);
         profilesMap = new Map(profilesData?.map(p => [p.id, p]));
       }
 
-      const enrichedPosts = postsData?.map(post => ({
-        ...post,
-        profile: profilesMap.get(post.user_id) || null,
-        is_saved: true,
-      })) || [];
+      // Fetch post media
+      let postMediaMap = new Map<string, { type: "image" | "video"; url: string }[]>();
+      if (postIds.length > 0) {
+        const { data: mediaData } = await supabase
+          .from("post_media" as any)
+          .select("post_id, url, type")
+          .in("post_id", postIds);
+
+        if (mediaData) {
+          mediaData.forEach((m: any) => {
+            const current = postMediaMap.get(m.post_id) || [];
+            current.push({ type: m.type, url: m.url });
+            postMediaMap.set(m.post_id, current);
+          });
+        }
+      }
+
+      const enrichedPosts = postsData?.map(post => {
+        let media = postMediaMap.get(post.id) || [];
+        // Fallback to legacy
+        if (media.length === 0 && post.media_url) {
+          media = [{
+            url: post.media_url,
+            type: (post.media_type as "image" | "video") || "image"
+          }];
+        }
+
+        return {
+          ...post,
+          profile: profilesMap.get(post.user_id) || null,
+          is_saved: true,
+          media
+        };
+      }) || [];
 
       setPosts(enrichedPosts);
       setLoading(false);

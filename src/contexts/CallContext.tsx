@@ -152,6 +152,15 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
                 }
             });
 
+            // Send notification
+            await (supabase.from("notifications" as any) as any).insert({
+                user_id: targetUserId,
+                actor_id: user.id,
+                type: "call",
+                content: `Incoming ${isVideo ? "video" : "voice"} call from ${user.email?.split("@")[0] || "User"}`,
+                is_read: false
+            });
+
         } catch (err) {
             console.error("Error starting call:", err);
             performCleanup();

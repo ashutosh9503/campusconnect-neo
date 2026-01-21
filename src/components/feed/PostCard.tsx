@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MessageSquare, Share2, Bookmark, MoreHorizontal, Send, X, Trash2 } from "lucide-react";
+import { MessageSquare, Share2, Bookmark, MoreHorizontal, Send, X, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useReaction, useSavePost } from "@/hooks/usePosts";
 import { useComments } from "@/hooks/useComments";
@@ -23,7 +23,7 @@ interface Post {
   media?: {
     type: "image" | "video";
     url: string;
-  };
+  }[];
   reactions: {
     brainrot: number;
     w: number;
@@ -63,6 +63,8 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
   const [showComments, setShowComments] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
+
+  const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
 
   const handleReaction = async (type: ReactionType) => {
     if (!user) {
@@ -183,6 +185,21 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
     }
   };
 
+  const nextMedia = () => {
+    if (post.media && currentMediaIndex < post.media.length - 1) {
+      setCurrentMediaIndex(prev => prev + 1);
+    }
+  };
+
+  const prevMedia = () => {
+    if (currentMediaIndex > 0) {
+      setCurrentMediaIndex(prev => prev - 1);
+    }
+  };
+
+  // Convert legacy single media to array if needed (though usePosts handles it now)
+  const mediaItems = post.media || [];
+
   return (
     <article
       className={cn(
@@ -198,8 +215,12 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
           to={`/profile/${post.author.username}`}
           className="flex items-center gap-3 hover:opacity-80 transition-opacity"
         >
-          <div className="w-10 h-10 bg-muted border-2 border-foreground flex items-center justify-center">
-            <span className="font-display text-sm text-foreground">{post.author.avatar}</span>
+          <div className="w-10 h-10 bg-muted border-2 border-foreground flex items-center justify-center overflow-hidden">
+            {post.author.avatar.startsWith("http") ? (
+              <img src={post.author.avatar} alt={post.author.username} className="w-full h-full object-cover" />
+            ) : (
+              <span className="font-display text-sm text-foreground">{post.author.avatar}</span>
+            )}
           </div>
           <div>
             <p className="font-mono text-sm text-foreground">{post.author.name}</p>
@@ -221,21 +242,57 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
         {post.content}
       </p>
 
-      {/* Media */}
-      {post.media && (
-        <div className="mb-3 border-2 border-foreground overflow-hidden">
-          {post.media.type === "image" ? (
-            <img
-              src={post.media.url}
-              alt="Post media"
-              className="w-full h-auto aspect-video object-cover"
-            />
-          ) : (
-            <video
-              src={post.media.url}
-              controls
-              className="w-full h-auto aspect-video object-cover"
-            />
+      {/* Media Carousel */}
+      {mediaItems.length > 0 && (
+        <div className="mb-3 border-2 border-foreground overflow-hidden bg-black relative group/media">
+          <div className="w-full h-[400px] bg-black flex items-center justify-center">
+            {mediaItems[currentMediaIndex].type === "image" ? (
+              <img
+                src={mediaItems[currentMediaIndex].url}
+                alt={`Post media ${currentMediaIndex + 1}`}
+                className="w-full h-full object-contain"
+              />
+            ) : (
+              <video
+                src={mediaItems[currentMediaIndex].url}
+                controls
+                className="w-full h-full object-contain"
+              />
+            )}
+          </div>
+
+          {/* Navigation Controls */}
+          {mediaItems.length > 1 && (
+            <>
+              {currentMediaIndex > 0 && (
+                <button
+                  onClick={(e) => { e.preventDefault(); prevMedia(); }}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-black/50 text-white rounded-full opacity-0 group-hover/media:opacity-100 transition-opacity"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+              )}
+              {currentMediaIndex < mediaItems.length - 1 && (
+                <button
+                  onClick={(e) => { e.preventDefault(); nextMedia(); }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-black/50 text-white rounded-full opacity-0 group-hover/media:opacity-100 transition-opacity"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+              )}
+              {/* Dots */}
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                {mediaItems.map((_, idx) => (
+                  <div
+                    key={idx}
+                    className={cn(
+                      "w-2 h-2 rounded-full transition-colors",
+                      idx === currentMediaIndex ? "bg-primary" : "bg-white/50"
+                    )}
+                  />
+                ))}
+              </div>
+            </>
           )}
         </div>
       )}

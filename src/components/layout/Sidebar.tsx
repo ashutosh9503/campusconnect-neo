@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
+import { useNotifications } from "@/hooks/useNotifications";
 
 const navItems = [
   { icon: Home, label: "Feed", path: "/" },
@@ -36,6 +37,7 @@ export function Sidebar() {
   const navigate = useNavigate();
   const { user, signOut, loading } = useAuth();
   const { profile } = useProfile();
+  const { unreadCount } = useNotifications();
 
   const handleSignOut = async () => {
     await signOut();
@@ -69,7 +71,7 @@ export function Sidebar() {
               key={item.path}
               to={item.path}
               className={cn(
-                "flex items-center gap-3 px-4 py-3 font-mono text-sm transition-all border-2",
+                "flex items-center gap-3 px-4 py-3 font-mono text-sm transition-all border-2 relative",
                 isActive
                   ? "bg-primary text-primary-foreground border-foreground shadow-brutal"
                   : "bg-transparent text-foreground border-transparent hover:border-foreground hover:bg-muted"
@@ -77,6 +79,11 @@ export function Sidebar() {
             >
               <item.icon className="w-5 h-5" />
               <span>{item.label}</span>
+              {item.label === "Notifications" && unreadCount > 0 && (
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] text-destructive-foreground font-bold">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
             </Link>
           );
         })}

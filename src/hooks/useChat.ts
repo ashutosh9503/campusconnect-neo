@@ -11,6 +11,7 @@ export interface Message {
   media_url?: string | null;
   media_type?: "image" | "video" | null;
   deleted?: boolean;
+  seen?: boolean;
   reactions?: Record<string, string>; // userId -> emoji
   sender_profile?: {
     username: string | null;
@@ -104,6 +105,14 @@ export function useConversations() {
             .limit(1)
             .single();
 
+          // Count unread messages
+          const { count: unreadCount } = await (supabase
+            .from("messages")
+            .select("*", { count: 'exact', head: true })
+            .eq("conversation_id", conv.id)
+            .neq("sender_id", user.id)
+            .eq("seen", false) as any);
+
           let displayMessage = "No messages yet";
           if (lastMsg) {
             const isDeleted = (lastMsg as any).deleted;
@@ -117,6 +126,7 @@ export function useConversations() {
             other_user: otherUser,
             last_message: displayMessage,
             last_message_at: lastMsg?.created_at,
+            unread_count: unreadCount || 0
           };
         })
       );
@@ -148,6 +158,17 @@ export function useMessages(conversationId: string) {
     avatar_url: string | null;
   } | null>(null);
 
+  const [otherUserTyping, setOtherUserTyping] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const channelRef = useRef<any>(null);
+
+  useEffect(() => {
+    // Request notification permission on mount
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
+
   const fetchMessages = useCallback(async () => {
     if (!conversationId || !user) {
       setLoading(false);
@@ -173,13 +194,11 @@ export function useMessages(conversationId: string) {
         profilesMap = new Map(profilesData?.map(p => [p.id, p]));
       }
 
-      // Fetch reactions separate logic or embedded if JSONB
-      // Assuming 'reactions' column exists now as per migration
-
       const enrichedMessages = messagesData?.map(msg => {
         processedMessageIds.current.add(msg.id);
         return {
           ...msg,
+          // map legacy reactions if needed, but for now we assume separate table or not implementing full reactions right now
           sender_profile: profilesMap.get(msg.sender_id) || null,
         };
       }) || [];
@@ -218,8 +237,18 @@ export function useMessages(conversationId: string) {
   useEffect(() => {
     fetchMessages();
 
-    const channel = supabase
-      .channel(`messages:${conversationId}`)
+    // Setup Realtime with Presence for typing
+    const channel = supabase.channel(`messages:${conversationId}`, {
+      config: {
+        presence: {
+          key: user?.id,
+        },
+      },
+    });
+
+    channelRef.current = channel;
+
+    channel
       .on(
         "postgres_changes",
         {
@@ -236,6 +265,14 @@ export function useMessages(conversationId: string) {
             if (processedMessageIds.current.has(newMsg.id)) return;
             processedMessageIds.current.add(newMsg.id);
 
+            // Browser Notification
+            if (document.hidden && newMsg.sender_id !== user?.id && "Notification" in window && Notification.permission === "granted") {
+              new Notification(`New message from ${otherUser?.username || "CampusConnect"}`, {
+                body: newMsg.content || "Sent a media file",
+                icon: "/favicon.ico" // assume default
+              });
+            }
+
             const { data: profile } = await supabase
               .from("profiles")
               .select("id, username, full_name, avatar_url")
@@ -243,7 +280,6 @@ export function useMessages(conversationId: string) {
               .single();
 
             setMessages(prev => {
-              // Double check state for ID to be sure
               if (prev.some(m => m.id === newMsg.id)) return prev;
               return [...prev, {
                 ...newMsg,
@@ -254,18 +290,44 @@ export function useMessages(conversationId: string) {
                 } : undefined
               }];
             });
+
+            // If message received while typing, clear other typing
+            if (newMsg.sender_id !== user?.id) {
+              setOtherUserTyping(false);
+            }
+
           } else if (payload.eventType === "UPDATE") {
             const updatedMsg = payload.new as Message;
             setMessages(prev => prev.map(m => m.id === updatedMsg.id ? { ...m, ...updatedMsg } : m));
           }
         }
       )
-      .subscribe();
+      .on("presence", { event: "sync" }, () => {
+        const newState = channel.presenceState();
+        // Check if anyone else is typing
+        const othersTyping = Object.keys(newState).some(key => key !== user?.id && (newState[key] as any)?.[0]?.isTyping);
+        setOtherUserTyping(othersTyping);
+      })
+      .on("presence", { event: "join" }, ({ key, newPresences }) => {
+        if (key !== user?.id && (newPresences as any)?.[0]?.isTyping) {
+          setOtherUserTyping(true);
+        }
+      })
+      .on("presence", { event: "leave" }, ({ key }) => {
+        if (key !== user?.id) {
+          setOtherUserTyping(false); // Simplified
+        }
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          // await channel.track({ isTyping: false });
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [conversationId, fetchMessages]);
+  }, [conversationId, fetchMessages, user, otherUser]); // otherUser added for notification name
 
   const sendMessage = async (content: string, file?: File | null) => {
     if (!user || (!content.trim() && !file)) return { error: new Error("Invalid") };
@@ -286,6 +348,7 @@ export function useMessages(conversationId: string) {
       created_at: new Date().toISOString(),
       media_url: file ? URL.createObjectURL(file) : null,
       media_type: mediaType as any,
+      seen: false,
       sender_profile: {
         username: user.email?.split("@")[0] || "user",
         full_name: user.email?.split("@")[0] || "User",
@@ -324,7 +387,6 @@ export function useMessages(conversationId: string) {
 
       if (data) {
         processedMessageIds.current.add(data.id);
-        // Replace optimistic message with real message
         setMessages(prev => prev.map(m => m.id === tempId ? { ...m, ...data } : m));
       }
 
@@ -332,6 +394,30 @@ export function useMessages(conversationId: string) {
         .from("conversations")
         .update({ updated_at: new Date().toISOString() })
         .eq("id", conversationId);
+
+      // Create Notification for the receiver
+      const { data: members } = await supabase
+        .from("conversation_members")
+        .select("user_id")
+        .eq("conversation_id", conversationId)
+        .neq("user_id", user.id);
+
+      if (members) {
+        // For 1-on-1, typically one member, for group multiple.
+        // Assuming direct chat primarily for now or notifying all others.
+        const notifications = members.map(m => ({
+          user_id: m.user_id,
+          actor_id: user.id,
+          type: "message",
+          content: `${user.email?.split("@")[0] || "User"}: ${content.substring(0, 50)}${content.length > 50 ? "..." : ""}`,
+          reference_id: conversationId,
+          created_at: new Date().toISOString()
+        }));
+
+        if (notifications.length > 0) {
+          await (supabase.from("notifications" as any) as any).insert(notifications);
+        }
+      }
 
       return { error: null };
     } catch (err: any) {
@@ -357,18 +443,12 @@ export function useMessages(conversationId: string) {
 
   const deleteConversation = async () => {
     try {
-      // We rely on ON DELETE CASCADE for messages.
-      // We only delete the conversation row.
       const { error } = await supabase
         .from("conversations")
         .delete()
         .eq("id", conversationId);
 
-      if (error) {
-        console.error("Error deleting conversation:", error);
-        throw error;
-      };
-
+      if (error) throw error;
       return { error: null };
     } catch (err: any) {
       return { error: err };
@@ -376,8 +456,6 @@ export function useMessages(conversationId: string) {
   };
 
   const addReaction = async (messageId: string, emoji: string) => {
-    // Optimistic reaction?
-    // For now let's just push to DB and let realtime handle update
     try {
       const { error } = await supabase.from('message_reactions' as any).upsert({
         message_id: messageId,
@@ -391,7 +469,35 @@ export function useMessages(conversationId: string) {
     }
   };
 
-  return { messages, loading, otherUser, sendMessage, deleteMessage, deleteConversation, addReaction, refetch: fetchMessages };
+  const markAsSeen = async () => {
+    if (!user) return;
+    try {
+      // Mark all unseen messages from others as seen
+      await supabase.from("messages")
+        .update({ seen: true } as any)
+        .eq("conversation_id", conversationId)
+        .neq("sender_id", user.id)
+        .eq("seen", false);
+
+      // Optimistically update local state
+      setMessages(prev => prev.map(m => {
+        if (m.sender_id !== user.id && !m.seen) {
+          return { ...m, seen: true };
+        }
+        return m;
+      }));
+    } catch (err) {
+      console.error("Error marking as seen:", err);
+    }
+  };
+
+  const sendTyping = async (isTyping: boolean) => {
+    if (channelRef.current) {
+      await channelRef.current.track({ isTyping });
+    }
+  };
+
+  return { messages, loading, otherUser, otherUserTyping, sendMessage, deleteMessage, deleteConversation, addReaction, markAsSeen, sendTyping, refetch: fetchMessages };
 }
 
 export function useStartConversation() {
@@ -429,18 +535,15 @@ export function useStartConversation() {
       }
 
       const newConversationId = crypto.randomUUID();
-
       const { error: convError } = await supabase
         .from("conversations")
         .insert({ id: newConversationId, is_group: false });
-
       if (convError) throw convError;
 
       const { error: memberError } = await supabase.from("conversation_members").insert([
         { conversation_id: newConversationId, user_id: user.id },
         { conversation_id: newConversationId, user_id: otherUserId },
       ]);
-
       if (memberError) throw memberError;
 
       return { conversationId: newConversationId, error: null };

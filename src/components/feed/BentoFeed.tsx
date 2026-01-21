@@ -43,15 +43,12 @@ export function BentoFeed() {
     author: {
       name: post.profile?.full_name || post.profile?.username || "User",
       username: post.profile?.username || "user",
-      avatar: (post.profile?.username || post.profile?.full_name || "U").slice(0, 2).toUpperCase(),
+      avatar: post.profile?.avatar_url || (post.profile?.username || post.profile?.full_name || "U").slice(0, 2).toUpperCase(),
       stream: post.profile?.stream || "CS",
       year: post.profile?.year || "TY",
     },
     content: post.content,
-    media: post.media_url ? {
-      type: (post.media_type === "video" ? "video" : "image") as "image" | "video",
-      url: post.media_url,
-    } : undefined,
+    media: post.media,
     reactions: post.reactions_count || { brainrot: 0, w: 0, l: 0, coffee: 0 },
     comments: post.comments_count || 0,
     timestamp: formatTimeAgo(post.created_at),

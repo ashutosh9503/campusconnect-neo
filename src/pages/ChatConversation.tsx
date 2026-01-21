@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { ArrowLeft, Send, Image, Smile, MoreVertical, Phone, Video, Trash2, X, Heart } from "lucide-react";
+import { ArrowLeft, Send, Image, Smile, MoreVertical, Phone, Video, Trash2, X, Heart, Check, CheckCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMessages } from "@/hooks/useChat";
@@ -25,7 +25,7 @@ export default function ChatConversation() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { messages, loading, otherUser, sendMessage, deleteMessage, deleteConversation, addReaction } = useMessages(id || "");
+  const { messages, loading, otherUser, otherUserTyping, sendMessage, deleteMessage, deleteConversation, addReaction, markAsSeen, sendTyping } = useMessages(id || "");
   const { startCall } = useCall();
 
   useEffect(() => {
@@ -40,7 +40,11 @@ export default function ChatConversation() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, mediaPreview]);
+    // Mark as seen when messages update and we are at the bottom or viewing
+    if (messages.length > 0) {
+      markAsSeen();
+    }
+  }, [messages, mediaPreview, markAsSeen]);
 
   const handleSend = async () => {
     if (!newMessage.trim() && !mediaFile) return;
@@ -51,6 +55,7 @@ export default function ChatConversation() {
     setNewMessage("");
     setMediaFile(null);
     setMediaPreview(null);
+    sendTyping(false);
 
     const { error } = await sendMessage(currentMessage, currentFile);
 
@@ -68,6 +73,11 @@ export default function ChatConversation() {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewMessage(e.target.value);
+    sendTyping(e.target.value.length > 0);
   };
 
   const handleVideoCall = () => {
@@ -102,6 +112,7 @@ export default function ChatConversation() {
       }
       setMediaFile(file);
       setMediaPreview(URL.createObjectURL(file));
+      sendTyping(true);
     }
   };
 
@@ -147,7 +158,9 @@ export default function ChatConversation() {
                 ) : (
                   <p className="font-mono text-sm text-foreground truncate">{displayName}</p>
                 )}
-                <p className="font-mono text-[10px] text-primary">Online</p>
+                <p className="font-mono text-[10px] text-primary">
+                  {otherUserTyping ? "Typing..." : "Online"}
+                </p>
               </div>
             </div>
           </div>
@@ -224,17 +237,24 @@ export default function ChatConversation() {
 
                     {message.content && <p className="font-mono text-sm break-words whitespace-pre-wrap">{message.content}</p>}
 
-                    <p className={cn(
-                      "font-mono text-[10px] mt-1 text-right",
-                      isOwn ? "text-primary-foreground/70" : "text-muted-foreground"
+                    <div className={cn(
+                      "flex items-center gap-1 mt-1 justify-end"
                     )}>
-                      {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
+                      <p className={cn(
+                        "font-mono text-[10px]",
+                        isOwn ? "text-primary-foreground/70" : "text-muted-foreground"
+                      )}>
+                        {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                      {isOwn && (
+                        message.seen
+                          ? <CheckCheck className="w-3 h-3 text-primary-foreground/70" />
+                          : <Check className="w-3 h-3 text-primary-foreground/70" />
+                      )}
+                    </div>
 
-                    {/* Reactions - Simplified to just showing if present for now since we don't have full reaction rendering logic built yet */}
-                    {/* Ideally map through message.reactions if it were in the Type, but currently useMessages fetches it separately or via hook improvement. 
-                        Since I updated useMessages to return reactions in Message type, I can try to render it if it fails I'll fix.
-                    */}
+                    {/* Reactions */}
+                    {/* Simplified */}
 
                     {/* Delete Action (only for own messages) */}
                     {isOwn && (
@@ -251,6 +271,13 @@ export default function ChatConversation() {
               );
             })
           )}
+          {otherUserTyping && (
+            <div className="flex justify-start animate-fade-in">
+              <div className="px-4 py-2 bg-muted/20 border-2 border-transparent">
+                <p className="font-mono text-xs text-muted-foreground animate-pulse">Typing...</p>
+              </div>
+            </div>
+          )}
           <div ref={messagesEndRef} />
         </div>
 
@@ -262,7 +289,7 @@ export default function ChatConversation() {
                 <img src={mediaPreview} alt="Preview" className="h-24 w-auto object-cover" />
               </div>
               <button
-                onClick={() => { setMediaFile(null); setMediaPreview(null); }}
+                onClick={() => { setMediaFile(null); setMediaPreview(null); sendTyping(false); }}
                 className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground border-2 border-foreground p-1 rounded-full hover:scale-110 transition-transform"
               >
                 <X className="w-3 h-3" />
@@ -291,8 +318,9 @@ export default function ChatConversation() {
             <input
               type="text"
               value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
+              onChange={handleTyping}
               onKeyPress={handleKeyPress}
+              onBlur={() => sendTyping(false)}
               placeholder={mediaFile ? "Add a caption..." : "Type a message..."}
               className="flex-1 px-4 py-2 bg-background border-2 border-foreground font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
             />

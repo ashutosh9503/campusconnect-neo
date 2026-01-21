@@ -28,15 +28,15 @@ export function useSearch() {
       // Search users
       const { data: users } = await supabase
         .from("profiles")
-        .select("id, username, display_name, avatar_url, stream, year")
-        .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
+        .select("id, username, full_name, avatar_url, stream, year")
+        .or(`username.ilike.%${query}%,full_name.ilike.%${query}%`)
         .limit(10);
 
-      users?.forEach(user => {
+      users?.forEach((user: any) => {
         searchResults.push({
           type: "user",
           id: user.id,
-          title: user.display_name || user.username || "User",
+          title: user.full_name || user.username || "User",
           subtitle: `@${user.username || "user"} • ${user.stream || ""} ${user.year || ""}`,
           avatar: user.avatar_url || undefined,
         });
@@ -55,17 +55,17 @@ export function useSearch() {
         const userIds = [...new Set(posts.map(p => p.user_id))];
         const { data: profiles } = await supabase
           .from("profiles")
-          .select("id, username, display_name")
+          .select("id, username, full_name")
           .in("id", userIds);
 
         const profilesMap = new Map(profiles?.map(p => [p.id, p]));
 
         posts.forEach(post => {
-          const profile = profilesMap.get(post.user_id);
+          const profile: any = profilesMap.get(post.user_id);
           searchResults.push({
             type: "post",
             id: post.id,
-            title: profile?.display_name || profile?.username || "User",
+            title: profile?.full_name || profile?.username || "User",
             subtitle: new Date(post.created_at).toLocaleDateString(),
             content: post.content.substring(0, 100) + (post.content.length > 100 ? "..." : ""),
           });

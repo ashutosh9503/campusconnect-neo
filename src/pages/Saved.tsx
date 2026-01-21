@@ -29,7 +29,7 @@ export default function Saved() {
 
   return (
     <MainLayout showSidebars={false}>
-      <div className="min-h-screen max-w-2xl mx-auto">
+      <div className="min-h-screen w-full">
         {/* Header */}
         <div className="p-4 border-b-2 border-foreground sticky top-0 bg-background z-10">
           <div className="flex items-center gap-2">
@@ -42,31 +42,32 @@ export default function Saved() {
         </div>
 
         {/* Saved Posts */}
-        <div className="p-4 space-y-4">
+        <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {posts.length > 0 ? (
             posts.map((post) => (
-              <PostCard
-                key={post.id}
-                post={{
-                  id: post.id,
-                  author: {
-                    name: (post as any).profile?.full_name || (post as any).profile?.username || "User",
-                    username: (post as any).profile?.username || "user",
-                    avatar: ((post as any).profile?.username || "U").slice(0, 2).toUpperCase(),
-                    stream: (post as any).profile?.stream || "CS",
-                    year: (post as any).profile?.year || "TY",
-                  },
-                  content: post.content,
-                  media: post.media_url ? { type: post.media_type === "video" ? "video" : "image", url: post.media_url } : undefined,
-                  reactions: { brainrot: 0, w: 0, l: 0, coffee: 0 },
-                  comments: 0,
-                  timestamp: new Date(post.created_at).toLocaleDateString(),
-                  is_saved: true,
-                }}
-              />
+              <div key={post.id} className="h-full">
+                <PostCard
+                  post={{
+                    id: post.id,
+                    author: {
+                      name: (post as any).profile?.full_name || (post as any).profile?.username || "User",
+                      username: (post as any).profile?.username || "user",
+                      avatar: (post as any).profile?.avatar_url || ((post as any).profile?.username || "U").slice(0, 2).toUpperCase(),
+                      stream: (post as any).profile?.stream || "CS",
+                      year: (post as any).profile?.year || "TY",
+                    },
+                    content: post.content,
+                    media: (post as any).media,
+                    reactions: { brainrot: 0, w: 0, l: 0, coffee: 0 },
+                    comments: 0,
+                    timestamp: new Date(post.created_at).toLocaleDateString(),
+                    is_saved: true,
+                  }}
+                />
+              </div>
             ))
           ) : (
-            <div className="text-center py-16">
+            <div className="col-span-full text-center py-16">
               <Bookmark className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
               <h2 className="font-display text-lg text-foreground mb-2">NO SAVED POSTS</h2>
               <p className="font-mono text-sm text-muted-foreground">
