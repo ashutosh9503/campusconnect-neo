@@ -12,6 +12,7 @@ export interface Message {
   media_type?: "image" | "video" | null;
   deleted?: boolean;
   seen?: boolean;
+  failed?: boolean;
   reactions?: Record<string, string>; // userId -> emoji
   sender_profile?: {
     username: string | null;
@@ -132,6 +133,46 @@ export function useConversations() {
       );
 
       setConversations(enrichedConversations as Conversation[]);
+
+      // Deduplicate conversations (prefer ones with messages or newer)
+      const uniqueConversationsMap = new Map<string, Conversation>();
+
+      (enrichedConversations as Conversation[]).forEach(conv => {
+        if (conv.is_group) {
+          // Keep all group chats
+          uniqueConversationsMap.set(conv.id, conv);
+        } else {
+          // For 1:1, check if we already have a convo with this user
+          const otherId = conv.other_user?.user_id;
+          if (otherId) {
+            const existing = uniqueConversationsMap.get(otherId);
+            if (!existing) {
+              uniqueConversationsMap.set(otherId, conv);
+            } else {
+              // We have a duplicate. Keep the one with messages, or the newer one.
+              const existingHasMsg = existing.last_message && existing.last_message !== "No messages yet";
+              const currentHasMsg = conv.last_message && conv.last_message !== "No messages yet";
+
+              if (currentHasMsg && !existingHasMsg) {
+                uniqueConversationsMap.set(otherId, conv);
+              } else if (currentHasMsg === existingHasMsg) {
+                // Both have messages (or neither), pick newer
+                if (new Date(conv.updated_at) > new Date(existing.updated_at)) {
+                  uniqueConversationsMap.set(otherId, conv);
+                }
+              }
+            }
+          } else {
+            // No other user found (ghost chat? keep it by ID)
+            uniqueConversationsMap.set(conv.id, conv);
+          }
+        }
+      });
+
+      const uniqueConversations = Array.from(uniqueConversationsMap.values())
+        .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+
+      setConversations(uniqueConversations);
     } catch (err) {
       console.error("Error fetching conversations:", err);
     } finally {
@@ -421,7 +462,7 @@ export function useMessages(conversationId: string) {
 
       return { error: null };
     } catch (err: any) {
-      setMessages(prev => prev.filter(m => m.id !== tempId));
+      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, failed: true } : m));
       return { error: err };
     }
   };

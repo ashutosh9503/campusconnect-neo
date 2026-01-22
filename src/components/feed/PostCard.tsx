@@ -1,17 +1,25 @@
 import { useState } from "react";
-import { MessageSquare, Share2, Bookmark, MoreHorizontal, Send, X, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { MessageSquare, Share2, Bookmark, MoreHorizontal, Send, X, Trash2, ChevronLeft, ChevronRight, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useReaction, useSavePost } from "@/hooks/usePosts";
 import { useComments } from "@/hooks/useComments";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { Database } from "@/integrations/supabase/types";
+import { supabase } from "@/integrations/supabase/client";
 
 type ReactionType = Database["public"]["Enums"]["reaction_type"];
 
 interface Post {
   id: string;
+  user_id: string;
   author: {
     name: string;
     username: string;
@@ -231,9 +239,41 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
         </Link>
         <div className="flex items-center gap-2">
           <span className="font-mono text-[10px] text-muted-foreground">{post.timestamp}</span>
-          <button className="p-1 hover:bg-muted transition-colors">
-            <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-          </button>
+          {user && user.id === post.user_id && (
+            <DropdownMenu>
+              <DropdownMenuTrigger className="p-1 hover:bg-muted transition-colors outline-none">
+                <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-32 bg-card border-2 border-foreground rounded-none z-50">
+                <DropdownMenuItem
+                  onClick={async () => {
+                    if (confirm("Delete this post?")) {
+                      // We need to pass deletePost from parent or use hook here. 
+                      // Since usePosts is a list hook, maybe better to expose a single delete hook or pass it down.
+                      // Using usePosts inside PostCard might trigger full refetch or be weird if logic isn't shared.
+                      // Actually PostCard is properly isolated. Let's assume we pass a handleDelete prop or use a new useDeletePost hook.
+                      // Simplest: direct supabase call here or generic hook.
+                      // But wait, the list needs to update. PostCard receives validation from onUpdate?
+                      // Actually, let's use the new deletePost from usePosts but we can't easily access the parent's instance.
+                      // Better: create useDeletePost hook or just call supabase directly here and trigger onUpdate.
+
+                      const { error } = await supabase.from('posts').delete().eq('id', post.id);
+                      if (error) {
+                        toast({ title: "Error", description: error.message, variant: "destructive" });
+                      } else {
+                        toast({ title: "Post deleted" });
+                        if (onUpdate) onUpdate();
+                      }
+                    }
+                  }}
+                  className="font-mono text-xs text-destructive focus:text-destructive cursor-pointer"
+                >
+                  <Trash2 className="w-3 h-3 mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
 
@@ -297,25 +337,22 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
         </div>
       )}
 
-      {/* Reactions */}
-      <div className="flex items-center gap-2 mb-3 flex-wrap">
-        {(Object.keys(reactions) as Array<ReactionType>).map((type) => (
-          <button
-            key={type}
-            onClick={() => handleReaction(type)}
-            disabled={loading}
-            className={cn(
-              "flex items-center gap-1 px-2 py-1 border-2 transition-all font-mono text-xs",
-              activeReaction === type
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-transparent text-muted-foreground border-muted hover:border-foreground",
-              loading && "opacity-50 cursor-not-allowed"
-            )}
-          >
-            <span>{reactionEmojis[type]}</span>
-            <span>{reactions[type]}</span>
-          </button>
-        ))}
+      {/* Like Button */}
+      <div className="flex items-center gap-2 mb-3">
+        <button
+          onClick={() => handleReaction("w")}
+          disabled={loading}
+          className={cn(
+            "flex items-center gap-2 px-3 py-1.5 border-2 transition-all font-mono text-xs rounded-full",
+            activeReaction === "w"
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-transparent text-muted-foreground border-muted hover:border-foreground hover:bg-muted/10",
+            loading && "opacity-50 cursor-not-allowed"
+          )}
+        >
+          <Heart className={cn("w-4 h-4", activeReaction === "w" && "fill-current")} />
+          <span>{reactions["w"] || 0}</span>
+        </button>
       </div>
 
       {/* Actions */}

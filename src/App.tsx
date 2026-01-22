@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { CallProvider } from "@/contexts/CallContext";
 import { IncomingCallDialog } from "@/components/chat/IncomingCallDialog";
 import { VideoCallOverlay } from "@/components/chat/VideoCallOverlay";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -25,6 +26,7 @@ import Profile from "./pages/Profile";
 import UserProfile from "./pages/UserProfile";
 import Search from "./pages/Search";
 import NotFound from "./pages/NotFound";
+import NoticesPage from "./pages/NoticesPage";
 
 const queryClient = new QueryClient();
 
@@ -39,23 +41,27 @@ const App = () => (
           <VideoCallOverlay />
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<Index />} />
+              {/* Public Routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
-              <Route path="/chat" element={<Chat />} />
-              <Route path="/chat/:id" element={<ChatConversation />} />
-              <Route path="/create" element={<CreatePost />} />
-              <Route path="/stories/create" element={<CreateStory />} />
-              <Route path="/notifications" element={<Notifications />} />
-              <Route path="/groups" element={<Groups />} />
-              <Route path="/groups/:groupId/chat" element={<GroupChat />} />
-              <Route path="/events" element={<Events />} />
-              <Route path="/saved" element={<Saved />} />
-              <Route path="/trending" element={<Trending />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/search" element={<Search />} />
-              <Route path="/profile/:username" element={<UserProfile />} />
+
+              {/* Protected Routes */}
+              <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
+              <Route path="/chat/:id" element={<ProtectedRoute><ChatConversation /></ProtectedRoute>} />
+              <Route path="/create" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
+              <Route path="/stories/create" element={<ProtectedRoute><CreateStory /></ProtectedRoute>} />
+              <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+              <Route path="/notices" element={<ProtectedRoute><NoticesPage /></ProtectedRoute>} />
+              <Route path="/groups" element={<ProtectedRoute><Groups /></ProtectedRoute>} />
+              <Route path="/groups/:groupId/chat" element={<ProtectedRoute><GroupChat /></ProtectedRoute>} />
+              <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
+              <Route path="/saved" element={<ProtectedRoute><Saved /></ProtectedRoute>} />
+              <Route path="/trending" element={<ProtectedRoute><Trending /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+              <Route path="/search" element={<ProtectedRoute><Search /></ProtectedRoute>} />
+              <Route path="/profile/:username" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

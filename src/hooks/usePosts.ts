@@ -195,7 +195,23 @@ export function usePosts(userId?: string, limit = 20) {
     fetchPosts();
   }, [fetchPosts]);
 
-  return { posts, loading, error, refetch: fetchPosts };
+  const deletePost = async (postId: string) => {
+    try {
+      const { error } = await supabase
+        .from("posts")
+        .delete()
+        .eq("id", postId);
+
+      if (error) throw error;
+
+      setPosts(prev => prev.filter(p => p.id !== postId));
+      return { error: null };
+    } catch (err: any) {
+      return { error: err };
+    }
+  };
+
+  return { posts, loading, error, refetch: fetchPosts, deletePost };
 }
 
 export function useSavedPosts() {

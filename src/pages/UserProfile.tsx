@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { Settings, Grid, Bookmark, ArrowLeft, UserPlus, UserCheck, MessageSquare } from "lucide-react";
+import { Settings, Grid, Bookmark, ArrowLeft, UserPlus, UserCheck, MessageSquare, Instagram, Twitter, Linkedin, Globe } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { PostCard } from "@/components/feed/PostCard";
@@ -115,6 +115,7 @@ export default function UserProfile() {
 
   const formattedPosts = posts.map((post, index) => ({
     id: post.id,
+    user_id: post.user_id,
     author: {
       name: post.profile?.full_name || post.profile?.username || "User",
       username: post.profile?.username || "user",
@@ -123,10 +124,10 @@ export default function UserProfile() {
       year: post.profile?.year || "TY",
     },
     content: post.content,
-    media: post.media_url ? {
-      type: (post.media_type === "video" ? "video" : "image") as "image" | "video",
-      url: post.media_url
-    } : undefined,
+    media: (post.media && post.media.length > 0) ? post.media : ((post as any).media_url ? [{
+      type: ((post as any).media_type === "video" ? "video" : "image") as "image" | "video",
+      url: (post as any).media_url
+    }] : undefined),
     reactions: post.reactions_count || { brainrot: 0, w: 0, l: 0, coffee: 0 },
     comments: post.comments_count || 0,
     timestamp: new Date(post.created_at).toLocaleDateString(),
@@ -265,7 +266,7 @@ export default function UserProfile() {
             <div className="text-center py-8 font-mono text-muted-foreground">Loading...</div>
           ) : formattedPosts.length > 0 ? (
             formattedPosts.map((post) => (
-              <PostCard key={post.id} post={post} onUpdate={refetch} />
+              <PostCard key={post.id} post={{ ...post, user_id: post.user_id }} onUpdate={refetch} />
             ))
           ) : (
             <div className="text-center py-16">

@@ -1,5 +1,5 @@
 {
-  "name": "CampusConnect - TSNDC Edition",
+  "name": "CampusConnect - TSDC Edition",
   "short_name": "CampusConnect",
   "description": "Hyper-local social network for Thakur Shyamnarayan Degree College students",
   "start_url": "/",
@@ -21,7 +21,10 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["social", "education"],
+  "categories": [
+    "social",
+    "education"
+  ],
   "screenshots": [],
   "shortcuts": [
     {
@@ -29,14 +32,24 @@
       "short_name": "Post",
       "description": "Create a new post",
       "url": "/create",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Messages",
       "short_name": "Chat",
       "description": "View your messages",
       "url": "/chat",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }

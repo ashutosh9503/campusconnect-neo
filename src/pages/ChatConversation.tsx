@@ -34,17 +34,50 @@ export default function ChatConversation() {
     }
   }, [user, authLoading, navigate]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [isNearBottom, setIsNearBottom] = useState(true);
+
+  const scrollToBottom = (force = false) => {
+    if (force || isNearBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   };
 
+  const prevMessagesLength = useRef(0);
+
   useEffect(() => {
-    scrollToBottom();
+    // Only scroll if a NEW message is added
+    if (messages.length > prevMessagesLength.current) {
+      const lastMessage = messages[messages.length - 1];
+      const isOwn = lastMessage?.sender_id === user?.id;
+
+      // If it's my own message, force scroll. 
+      // If it's another user's, only scroll if I was already near the bottom.
+      scrollToBottom(isOwn);
+    }
+
+    prevMessagesLength.current = messages.length;
+
     // Mark as seen when messages update and we are at the bottom or viewing
-    if (messages.length > 0) {
+    if (messages.length > 0 && isNearBottom) {
       markAsSeen();
     }
-  }, [messages, mediaPreview, markAsSeen]);
+  }, [messages, markAsSeen, isNearBottom]);
+
+  const handleScroll = () => {
+    if (scrollRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+      const bottomThreshold = 100;
+      const isBottom = scrollHeight - scrollTop - clientHeight <= bottomThreshold;
+      setIsNearBottom(isBottom);
+    }
+  };
+
+  // Check if initial load
+  useEffect(() => {
+    // Force scroll on mount/first load
+    messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+  }, []);
 
   const handleSend = async () => {
     if (!newMessage.trim() && !mediaFile) return;
@@ -186,7 +219,11 @@ export default function ChatConversation() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div
+          className="flex-1 overflow-y-auto p-4 space-y-4"
+          ref={scrollRef}
+          onScroll={handleScroll}
+        >
           {(loading && messages.length === 0) ? (
             // Skeleton Loading
             [...Array(3)].map((_, i) => (
@@ -247,7 +284,12 @@ export default function ChatConversation() {
                         {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </p>
                       {isOwn && (
-                        message.seen
+                        message.failed ? (
+                          <span className="text-destructive font-bold flex items-center gap-1" title="Failed to send">
+                            <span className="w-3 h-3 rounded-full bg-destructive inline-block" />
+                            Failed
+                          </span>
+                        ) : message.seen
                           ? <CheckCheck className="w-3 h-3 text-primary-foreground/70" />
                           : <Check className="w-3 h-3 text-primary-foreground/70" />
                       )}

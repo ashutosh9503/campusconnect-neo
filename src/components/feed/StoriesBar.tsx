@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Plus, Camera, Image, X, Eye } from "lucide-react";
+import { Plus, Camera, Image, X, Eye, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -291,13 +291,33 @@ export function StoriesBar() {
               <X className="w-6 h-6" />
             </button>
 
-            {/* Viewers (Only for owner) */}
+            {/* Viewers & Delete (Only for owner) */}
             {user?.id === currentStory.user_id && (
-              <div className="absolute bottom-10 left-4 bg-black/50 p-2 rounded backdrop-blur-sm z-20">
-                <div className="flex items-center gap-2 text-white">
+              <div className="absolute bottom-10 left-4 right-4 flex items-center justify-between z-40">
+                <div className="bg-black/50 p-2 rounded backdrop-blur-sm flex items-center gap-2 text-white">
                   <Eye className="w-4 h-4" />
                   <span className="font-mono text-xs">{currentStory.views_count || 0} views</span>
                 </div>
+                <button
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    if (confirm("Delete this story?")) {
+                      const { error } = await supabase.from('stories').delete().eq('id', currentStory.id);
+                      if (error) {
+                        // toast error? We don't have toast hook here yet? 
+                        // StoriesBar didn't have useToast. Let's rely on console or add it.
+                        console.error("Delete error", error);
+                      } else {
+                        // Remove from state
+                        setStories(prev => prev.filter(s => s.id !== currentStory.id));
+                        setViewerData(null); // Close viewer
+                      }
+                    }
+                  }}
+                  className="bg-black/50 p-2 rounded backdrop-blur-sm text-destructive hover:bg-white/20 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4 text-red-500" />
+                </button>
               </div>
             )}
           </div>

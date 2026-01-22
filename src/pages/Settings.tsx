@@ -79,9 +79,16 @@ export default function Settings() {
 
   const [editMode, setEditMode] = useState(false);
   const [fullName, setFullName] = useState(profile?.full_name || "");
+  const [username, setUsername] = useState(profile?.username || "");
   const [bio, setBio] = useState(profile?.bio || "");
   const [stream, setStream] = useState<StreamType>(profile?.stream || "CS");
   const [year, setYear] = useState<YearType>(profile?.year || "FY");
+  const [socialLinks, setSocialLinks] = useState({
+    instagram: profile?.social_links?.instagram || "",
+    linkedin: profile?.social_links?.linkedin || "",
+    twitter: profile?.social_links?.twitter || "",
+    website: profile?.social_links?.website || ""
+  });
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
@@ -89,9 +96,16 @@ export default function Settings() {
   useEffect(() => {
     if (profile) {
       setFullName(profile.full_name || "");
+      setUsername(profile.username || "");
       setBio(profile.bio || "");
       setStream(profile.stream || "CS");
       setYear(profile.year || "FY");
+      setSocialLinks({
+        instagram: profile.social_links?.instagram || "",
+        linkedin: profile.social_links?.linkedin || "",
+        twitter: profile.social_links?.twitter || "",
+        website: profile.social_links?.website || ""
+      });
     }
   }, [profile]);
 
@@ -99,9 +113,11 @@ export default function Settings() {
     setSaving(true);
     const { error } = await updateProfile({
       full_name: fullName,
+      username,
       bio,
       stream,
       year,
+      social_links: socialLinks
     });
 
     if (error) {
@@ -291,6 +307,17 @@ export default function Settings() {
 
             {editMode ? (
               <>
+                {/* Username */}
+                <div>
+                  <label className="font-mono text-xs text-muted-foreground">USERNAME</label>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="w-full mt-1 p-3 bg-background border-2 border-foreground font-mono text-sm focus:outline-none focus:border-primary"
+                  />
+                </div>
+
                 {/* Display Name */}
                 <div>
                   <label className="font-mono text-xs text-muted-foreground">FULL NAME</label>
@@ -340,6 +367,54 @@ export default function Settings() {
                         <option key={opt} value={opt}>{opt}</option>
                       ))}
                     </select>
+                  </div>
+                </div>
+                {/* Social Links */}
+                <div className="space-y-3 pt-4 border-t-2 border-border">
+                  <h3 className="font-display text-xs text-muted-foreground">SOCIAL LINKS</h3>
+
+                  <div>
+                    <label className="font-mono text-xs text-muted-foreground">INSTAGRAM</label>
+                    <input
+                      type="text"
+                      placeholder="username"
+                      value={socialLinks.instagram}
+                      onChange={(e) => setSocialLinks(prev => ({ ...prev, instagram: e.target.value }))}
+                      className="w-full mt-1 p-3 bg-background border-2 border-foreground font-mono text-sm focus:outline-none focus:border-primary"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-mono text-xs text-muted-foreground">LINKEDIN</label>
+                    <input
+                      type="text"
+                      placeholder="profile url"
+                      value={socialLinks.linkedin}
+                      onChange={(e) => setSocialLinks(prev => ({ ...prev, linkedin: e.target.value }))}
+                      className="w-full mt-1 p-3 bg-background border-2 border-foreground font-mono text-sm focus:outline-none focus:border-primary"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-mono text-xs text-muted-foreground">TWITTER / X</label>
+                    <input
+                      type="text"
+                      placeholder="username"
+                      value={socialLinks.twitter}
+                      onChange={(e) => setSocialLinks(prev => ({ ...prev, twitter: e.target.value }))}
+                      className="w-full mt-1 p-3 bg-background border-2 border-foreground font-mono text-sm focus:outline-none focus:border-primary"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-mono text-xs text-muted-foreground">WEBSITE</label>
+                    <input
+                      type="text"
+                      placeholder="https://"
+                      value={socialLinks.website}
+                      onChange={(e) => setSocialLinks(prev => ({ ...prev, website: e.target.value }))}
+                      className="w-full mt-1 p-3 bg-background border-2 border-foreground font-mono text-sm focus:outline-none focus:border-primary"
+                    />
                   </div>
                 </div>
               </>
@@ -414,6 +489,6 @@ export default function Settings() {
           </p>
         </div>
       </div>
-    </MainLayout>
+    </MainLayout >
   );
 }

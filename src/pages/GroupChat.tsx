@@ -11,7 +11,7 @@ import { GroupSettingsModal } from "@/components/groups/GroupSettingsModal";
 interface GroupMessage {
     id: string;
     group_id: string;
-    sender_id: string;
+    user_id: string;
     content: string;
     media_url?: string | null;
     media_type?: "image" | "video" | null;
@@ -60,7 +60,7 @@ export default function GroupChat() {
                         const { data: profile } = await supabase
                             .from("profiles")
                             .select("username, full_name, avatar_url")
-                            .eq("id", newMsg.sender_id)
+                            .eq("id", newMsg.user_id)
                             .single();
 
                         setMessages((prev) => {
@@ -117,7 +117,7 @@ export default function GroupChat() {
                     .order("created_at", { ascending: true });
 
                 if (rawMsgs) {
-                    const senderIds = [...new Set(rawMsgs.map((m: any) => m.sender_id))];
+                    const senderIds = [...new Set(rawMsgs.map((m: any) => m.user_id))];
                     const { data: profiles } = await supabase
                         .from("profiles")
                         .select("id, username, full_name, avatar_url")
@@ -126,7 +126,7 @@ export default function GroupChat() {
                     const profileMap = new Map(profiles?.map(p => [p.id, p]));
                     const enriched = rawMsgs.map((m: any) => ({
                         ...m,
-                        sender_profile: profileMap.get(m.sender_id)
+                        sender_profile: profileMap.get(m.user_id)
                     }));
                     setMessages(enriched as GroupMessage[]);
                 }
@@ -134,6 +134,7 @@ export default function GroupChat() {
             } else if (msgs) {
                 const formatted = msgs.map((m: any) => ({
                     ...m,
+                    user_id: m.user_id || m.sender_id, // Fallback if legacy logic exists
                     sender_profile: m.sender_profile
                 }));
                 setMessages(formatted as GroupMessage[]);
@@ -186,7 +187,7 @@ export default function GroupChat() {
             const optimisticMsg: GroupMessage = {
                 id: tempId,
                 group_id: groupId,
-                sender_id: user.id,
+                user_id: user.id,
                 content: content,
                 created_at: new Date().toISOString(),
                 media_url: URL.createObjectURL(currentFile),
@@ -204,7 +205,7 @@ export default function GroupChat() {
             const optimisticMsg: GroupMessage = {
                 id: tempId,
                 group_id: groupId,
-                sender_id: user.id,
+                user_id: user.id,
                 content: content,
                 created_at: new Date().toISOString(),
                 sender_profile: {
@@ -236,7 +237,7 @@ export default function GroupChat() {
 
             const { data, error } = await supabase.from("group_messages").insert({
                 group_id: groupId,
-                sender_id: user.id,
+                user_id: user.id,
                 content,
                 media_url: mediaUrl,
                 media_type: mediaType
@@ -246,12 +247,24 @@ export default function GroupChat() {
 
             // Replace optimistic with real
             if (data) {
-                setMessages(prev => prev.map(m => m.id === tempId ? { ...m, ...data, sender_profile: m.sender_profile } : m));
+                setMessages(prev => prev.map(m => m.id === tempId ? {
+                    ...m,
+                    id: data.id,
+                    created_at: data.created_at,
+                    user_id: data.user_id, // Update this too
+                    sender_profile: m.sender_profile
+                } : m));
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Send error:", error);
+            // Don't remove the message, mark it as failed (state not fully implemented yet in UI but this helps debugging)
+            toast({
+                title: "Error",
+                description: error.message || "Failed to send message",
+                variant: "destructive"
+            });
+            // Optional: allow retry? For now just remove optimistic to avoid confusion or keep it with error state
             setMessages(prev => prev.filter(m => m.id !== tempId));
-            toast({ title: "Error", description: "Failed to send message", variant: "destructive" });
         }
     };
 
@@ -290,7 +303,7 @@ export default function GroupChat() {
                         </div>
                     ) : (
                         messages.map((msg) => {
-                            const isMe = msg.sender_id === user?.id;
+                            const isMe = msg.user_id === user?.id;
                             return (
                                 <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
                                     <div className={`max-w-[70%] ${isMe ? "items-end" : "items-start"} flex flex-col`}>

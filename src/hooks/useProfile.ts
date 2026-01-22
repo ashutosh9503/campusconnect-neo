@@ -15,6 +15,13 @@ export interface Profile {
   stream: StreamType | null;
   year: YearType | null;
   avatar_url: string | null;
+  social_links?: {
+    instagram?: string;
+    twitter?: string;
+    linkedin?: string;
+    github?: string;
+    website?: string;
+  } | null;
   created_at: string;
   updated_at: string;
 }
@@ -54,7 +61,7 @@ export function useProfile(userId?: string) {
     fetchProfile();
   }, [fetchProfile]);
 
-  const updateProfile = async (updates: Partial<Omit<Profile, "stream" | "year">> & { stream?: StreamType; year?: YearType }) => {
+  const updateProfile = async (updates: Partial<Omit<Profile, "stream" | "year">> & { stream?: StreamType; year?: YearType; username?: string; social_links?: any }) => {
     if (!targetUserId) return { error: new Error("No user") };
 
     try {

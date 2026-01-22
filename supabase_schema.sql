@@ -243,7 +243,9 @@ create table if not exists public.group_messages (
   group_id uuid references public.groups(id) on delete cascade not null,
   user_id uuid references public.profiles(id) on delete set null,
   content text not null,
-  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  media_url text,
+  media_type text
 );
 
 -- EVENTS
@@ -427,3 +429,38 @@ create policy "Users can insert messages in their conversations" on public.messa
 create policy "Users view own notifications" on public.notifications for select using (auth.uid() = user_id);
 create policy "System/Users can create notifications" on public.notifications for insert with check (auth.role() = 'authenticated');
 create policy "Users can update/read notifications" on public.notifications for update using (auth.uid() = user_id);
+
+-- --- MISSING TABLES & POLICIES ---
+
+-- POST MEDIA (Found referenced in usePosts.ts but missing in schema)
+create table if not exists public.post_media (
+  id uuid default uuid_generate_v4() primary key,
+  post_id uuid references public.posts(id) on delete cascade not null,
+  url text not null,
+  type text not null, -- 'image' or 'video'
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table public.post_media enable row level security;
+
+create policy "Post media viewable by everyone" on public.post_media for select using (true);
+create policy "Users can add post media" on public.post_media for insert with check (
+  exists (select 1 from public.posts where id = post_id and user_id = auth.uid())
+);
+create policy "Users can delete own post media" on public.post_media for delete using (
+  exists (select 1 from public.posts where id = post_id and user_id = auth.uid())
+);
+
+-- STORAGE BUCKET: chat-media
+insert into storage.buckets (id, name, public)
+values ('chat-media', 'chat-media', true)
+on conflict (id) do nothing;
+
+drop policy if exists "Chat media is publicly accessible." on storage.objects;
+drop policy if exists "Authenticated users can upload chat media." on storage.objects;
+
+create policy "Chat media is publicly accessible." on storage.objects
+  for select using (bucket_id = 'chat-media');
+
+create policy "Authenticated users can upload chat media." on storage.objects
+  for insert with check (bucket_id = 'chat-media' and auth.role() = 'authenticated');

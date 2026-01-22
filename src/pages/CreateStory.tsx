@@ -124,11 +124,21 @@ export default function CreateStory() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
+    // Support images and videos
+    if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
       toast({
         title: "Invalid file",
-        description: "Please select an image file",
+        description: "Please select an image or video file",
         variant: "destructive",
+      });
+      return;
+    }
+
+    if (file.size > 15 * 1024 * 1024) { // 15MB limit for stories
+      toast({
+        title: "File too large",
+        description: "Max 15MB allowed for stories",
+        variant: "destructive"
       });
       return;
     }
@@ -157,7 +167,8 @@ export default function CreateStory() {
 
     try {
       // Upload to storage
-      const fileName = `${user.id}/${Date.now()}.jpg`;
+      const fileExt = capturedBlob.type.split('/')[1];
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
       const { error: uploadError } = await supabase.storage
         .from("stories")
         .upload(fileName, capturedBlob);
@@ -172,11 +183,14 @@ export default function CreateStory() {
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 24);
 
+      const mediaType = capturedBlob.type.startsWith('video/') ? 'video' : 'image';
+
       const { error } = await supabase
         .from("stories")
         .insert({
           user_id: user.id,
           media_url: urlData.publicUrl,
+          media_type: mediaType,
           expires_at: expiresAt.toISOString(),
         });
 
@@ -214,14 +228,17 @@ export default function CreateStory() {
         </div>
 
         {/* Camera/Preview Area */}
-        <div className="flex-1 relative bg-black">
+        <div className="flex-1 relative bg-black flex items-center justify-center">
           {capturedImage ? (
-            // Captured Image Preview
-            <img
-              src={capturedImage}
-              alt="Captured"
-              className="w-full h-full object-contain"
-            />
+            capturedBlob?.type.startsWith('video/') ? (
+              <video src={capturedImage} controls className="w-full h-full object-contain" />
+            ) : (
+              <img
+                src={capturedImage}
+                alt="Captured"
+                className="w-full h-full object-contain"
+              />
+            )
           ) : hasPermission === false ? (
             // Permission Denied
             <div className="flex flex-col items-center justify-center h-full text-center p-8">

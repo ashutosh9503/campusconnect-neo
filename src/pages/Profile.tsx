@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { Settings, Grid, Bookmark, Edit, UserPlus, UserCheck } from "lucide-react";
+import { Settings, Grid, Bookmark, Edit, UserPlus, UserCheck, Instagram, Twitter, Linkedin, Globe } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { PostCard } from "@/components/feed/PostCard";
@@ -106,6 +106,32 @@ export default function Profile() {
             <p className="font-mono text-sm text-foreground mt-4">{profile.bio}</p>
           )}
 
+          {/* Social Links */}
+          {profile?.social_links && (
+            <div className="flex gap-3 mt-4">
+              {profile.social_links.instagram && (
+                <a href={`https://instagram.com/${profile.social_links.instagram.replace('@', '')}`} target="_blank" rel="noreferrer" className="p-2 bg-muted border border-foreground hover:bg-primary hover:text-primary-foreground transition-colors">
+                  <Instagram className="w-4 h-4" />
+                </a>
+              )}
+              {profile.social_links.twitter && (
+                <a href={`https://twitter.com/${profile.social_links.twitter.replace('@', '')}`} target="_blank" rel="noreferrer" className="p-2 bg-muted border border-foreground hover:bg-primary hover:text-primary-foreground transition-colors">
+                  <Twitter className="w-4 h-4" />
+                </a>
+              )}
+              {profile.social_links.linkedin && (
+                <a href={profile.social_links.linkedin} target="_blank" rel="noreferrer" className="p-2 bg-muted border border-foreground hover:bg-primary hover:text-primary-foreground transition-colors">
+                  <Linkedin className="w-4 h-4" />
+                </a>
+              )}
+              {profile.social_links.website && (
+                <a href={profile.social_links.website} target="_blank" rel="noreferrer" className="p-2 bg-muted border border-foreground hover:bg-primary hover:text-primary-foreground transition-colors">
+                  <Globe className="w-4 h-4" />
+                </a>
+              )}
+            </div>
+          )}
+
           {/* Stats */}
           <div className="grid grid-cols-3 gap-4 mt-4">
             <div className="text-center">
@@ -176,6 +202,7 @@ export default function Profile() {
                 key={post.id}
                 post={{
                   id: post.id,
+                  user_id: post.user_id,
                   author: {
                     name: post.profile?.full_name || post.profile?.username || "User",
                     username: post.profile?.username || "user",

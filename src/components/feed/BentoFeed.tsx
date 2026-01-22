@@ -40,6 +40,7 @@ export function BentoFeed() {
 
   const formattedPosts = posts.map((post, index) => ({
     id: post.id,
+    user_id: post.user_id,
     author: {
       name: post.profile?.full_name || post.profile?.username || "User",
       username: post.profile?.username || "user",
