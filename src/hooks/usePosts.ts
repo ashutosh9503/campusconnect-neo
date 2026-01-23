@@ -200,6 +200,22 @@ export function usePosts(userId?: string, limit = 20, options?: { enabled?: bool
 
   useEffect(() => {
     fetchPosts();
+
+    const channel = supabase
+      .channel("public:posts")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "posts" },
+        (payload) => {
+          console.log("New post received!", payload);
+          fetchPosts();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchPosts]);
 
   const deletePost = async (postId: string) => {

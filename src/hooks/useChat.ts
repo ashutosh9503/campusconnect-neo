@@ -10,6 +10,7 @@ export interface Message {
   created_at: string;
   media_url?: string | null;
   media_type?: "image" | "video" | null;
+  shared_post_id?: string | null;
   deleted?: boolean;
   seen?: boolean;
   failed?: boolean;
@@ -99,7 +100,7 @@ export function useConversations() {
           }
 
           const { data: lastMsg } = await supabase
-            .from("messages")
+            .from("messages" as any)
             .select("*")
             .eq("conversation_id", conv.id)
             .order("created_at", { ascending: false })
@@ -108,7 +109,7 @@ export function useConversations() {
 
           // Count unread messages
           const { count: unreadCount } = await (supabase
-            .from("messages")
+            .from("messages" as any)
             .select("*", { count: 'exact', head: true })
             .eq("conversation_id", conv.id)
             .neq("sender_id", user.id)
@@ -118,7 +119,7 @@ export function useConversations() {
           if (lastMsg) {
             const isDeleted = (lastMsg as any).deleted;
             if (isDeleted) displayMessage = "Message deleted";
-            else if (lastMsg.content) displayMessage = lastMsg.content;
+            else if ((lastMsg as any).content) displayMessage = (lastMsg as any).content;
             else if ((lastMsg as any).media_url) displayMessage = "📷 Sent an image";
           }
 
@@ -126,7 +127,7 @@ export function useConversations() {
             ...conv,
             other_user: otherUser,
             last_message: displayMessage,
-            last_message_at: lastMsg?.created_at,
+            last_message_at: lastMsg ? (lastMsg as any).created_at : null,
             unread_count: unreadCount || 0
           };
         })
@@ -514,7 +515,7 @@ export function useMessages(conversationId: string) {
     if (!user) return;
     try {
       // Mark all unseen messages from others as seen
-      await supabase.from("messages")
+      await supabase.from("messages" as any)
         .update({ seen: true } as any)
         .eq("conversation_id", conversationId)
         .neq("sender_id", user.id)

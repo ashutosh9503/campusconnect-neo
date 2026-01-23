@@ -29,6 +29,22 @@ export function StoriesBar() {
 
   useEffect(() => {
     fetchStories();
+
+    const channel = supabase
+      .channel("public:stories")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "stories" },
+        (payload) => {
+          console.log("New story received!", payload);
+          fetchStories();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {

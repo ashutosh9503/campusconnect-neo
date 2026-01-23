@@ -11,6 +11,7 @@ import { GroupSettingsModal } from "@/components/groups/GroupSettingsModal";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu";
 import EmojiPicker from "emoji-picker-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { SharedPostCard } from "@/components/chat/SharedPostCard";
 import { Smile } from "lucide-react";
 
 interface GroupMessage {
@@ -20,6 +21,7 @@ interface GroupMessage {
     content: string;
     media_url?: string | null;
     media_type?: "image" | "video" | null;
+    shared_post_id?: string | null;
     created_at: string;
     deleted_at?: string | null;
     sender_profile?: {
@@ -163,8 +165,8 @@ export default function GroupChat() {
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            if (file.size > 5 * 1024 * 1024) {
-                toast({ title: "File too large", description: "Max 5MB", variant: "destructive" });
+            if (file.size > 200 * 1024 * 1024) {
+                toast({ title: "File too large", description: "Max 200MB", variant: "destructive" });
                 return;
             }
             setMediaFile(file);
@@ -298,6 +300,11 @@ export default function GroupChat() {
                                                         <span>This message was deleted</span>
                                                     ) : (
                                                         <>
+                                                            {msg.shared_post_id && (
+                                                                <div className="mb-2 w-full max-w-[280px]">
+                                                                    <SharedPostCard postId={msg.shared_post_id} />
+                                                                </div>
+                                                            )}
                                                             {msg.media_url && (
                                                                 <div className="mb-2">
                                                                     {msg.media_type === "video" ? (

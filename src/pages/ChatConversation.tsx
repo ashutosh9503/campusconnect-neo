@@ -15,6 +15,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import EmojiPicker from "emoji-picker-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { SharedPostCard } from "@/components/chat/SharedPostCard";
 
 export default function ChatConversation() {
   const { id } = useParams();
@@ -141,8 +142,8 @@ export default function ChatConversation() {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast({ title: "File too large", description: "Max 5MB", variant: "destructive" });
+      if (file.size > 200 * 1024 * 1024) {
+        toast({ title: "File too large", description: "Max 200MB", variant: "destructive" });
         return;
       }
       setMediaFile(file);
@@ -267,6 +268,13 @@ export default function ChatConversation() {
                       isOwn ? "bg-primary text-primary-foreground" : "bg-card text-foreground"
                     )}
                   >
+                    {/* Shared Post */}
+                    {message.shared_post_id && (
+                      <div className="mb-2 w-full max-w-[280px]">
+                        <SharedPostCard postId={message.shared_post_id} />
+                      </div>
+                    )}
+
                     {/* Media */}
                     {message.media_url && (
                       <div className="mb-2">

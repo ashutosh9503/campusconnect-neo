@@ -2,23 +2,21 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, ArrowRight, KeyRound, Lock, Eye, EyeOff, RefreshCw } from "lucide-react";
+import { Mail, ArrowRight, Lock, Eye, EyeOff, RefreshCw, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
-type AuthMode = "password" | "otp";
-type Step = "credentials" | "otp-verify";
+type AuthMode = "password" | "magic-link";
+type Step = "credentials" | "check-email";
 
 const RESEND_COOLDOWN = 30; // seconds
 
 export default function Login() {
   const navigate = useNavigate();
-  const { sendOtp, verifyOtp, signInWithPassword, user } = useAuth();
+  const { sendOtp, signInWithPassword, user } = useAuth();
   const { toast } = useToast();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [otpCode, setOtpCode] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>("password");
   const [step, setStep] = useState<Step>("credentials");
@@ -86,7 +84,7 @@ export default function Login() {
     setLoading(false);
   };
 
-  const handleSendOtp = useCallback(async (e?: React.FormEvent) => {
+  const handleSendMagicLink = useCallback(async (e?: React.FormEvent) => {
     e?.preventDefault();
 
     if (!validateEmail(email)) {
@@ -103,67 +101,40 @@ export default function Login() {
 
     if (error) {
       toast({
-        title: "Failed to send code",
+        title: "Failed to send link",
         description: error.message,
         variant: "destructive",
       });
     } else {
       toast({
-        title: "Code sent! 📧",
-        description: "Check your email for the 6-digit code",
+        title: "Link sent! 📧",
+        description: "Check your email for the verification link",
       });
-      setStep("otp-verify");
+      setStep("check-email");
       setResendCooldown(RESEND_COOLDOWN);
     }
 
     setLoading(false);
   }, [email, sendOtp, toast]);
 
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (otpCode.length !== 6) return;
-
-    setLoading(true);
-    const { error } = await verifyOtp(email, otpCode);
-
-    if (error) {
-      toast({
-        title: "Verification failed",
-        description: error.message,
-        variant: "destructive",
-      });
-      setOtpCode("");
-    } else {
-      toast({
-        title: "Welcome! 🎓",
-        description: "Successfully logged in",
-      });
-      navigate("/");
-    }
-
-    setLoading(false);
-  };
-
-  const handleResendOtp = async () => {
+  const handleResendLink = async () => {
     if (resendCooldown > 0) return;
-    await handleSendOtp();
+    await handleSendMagicLink();
   };
 
   const switchToPassword = () => {
     setAuthMode("password");
     setStep("credentials");
-    setOtpCode("");
   };
 
-  const switchToOtp = () => {
-    setAuthMode("otp");
+  const switchToMagicLink = () => {
+    setAuthMode("magic-link");
     setStep("credentials");
     setPassword("");
   };
 
   const resetToEmail = () => {
     setStep("credentials");
-    setOtpCode("");
   };
 
   return (
@@ -200,19 +171,19 @@ export default function Login() {
               </button>
               <button
                 type="button"
-                onClick={switchToOtp}
+                onClick={switchToMagicLink}
                 className={cn(
                   "flex-1 py-2 font-mono text-xs transition-colors border-l-2 border-foreground",
-                  authMode === "otp"
+                  authMode === "magic-link"
                     ? "bg-primary text-primary-foreground"
                     : "bg-background text-muted-foreground hover:text-foreground"
                 )}
               >
-                OTP
+                MAGIC LINK
               </button>
             </div>
 
-            <form onSubmit={authMode === "password" ? handlePasswordLogin : handleSendOtp} className="space-y-4">
+            <form onSubmit={authMode === "password" ? handlePasswordLogin : handleSendMagicLink} className="space-y-4">
               {/* Email */}
               <div>
                 <label className="font-mono text-xs text-muted-foreground">EMAIL</label>
@@ -267,11 +238,11 @@ export default function Login() {
                 {loading ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    {authMode === "password" ? "LOGGING IN..." : "SENDING..."}
+                    {authMode === "password" ? "LOGGING IN..." : "SENDING LINK..."}
                   </>
                 ) : (
                   <>
-                    {authMode === "password" ? "LOGIN" : "SEND OTP"}
+                    {authMode === "password" ? "LOGIN" : "SEND LINK"}
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -289,82 +260,52 @@ export default function Login() {
             </div>
           </div>
         ) : (
-          /* OTP Verification Form */
-          <form onSubmit={handleVerifyOtp} className="bg-card border-2 border-foreground p-6 space-y-4">
-            <h2 className="font-display text-xl text-foreground text-center">ENTER CODE</h2>
-            <p className="font-mono text-xs text-muted-foreground text-center">
-              We sent a 6-digit code to
-              <br />
-              <span className="text-primary">{email}</span>
-            </p>
-
-            {/* OTP Input */}
-            <div className="flex justify-center py-4">
-              <InputOTP maxLength={6} value={otpCode} onChange={setOtpCode}>
-                <InputOTPGroup>
-                  <InputOTPSlot index={0} className="border-2 border-foreground bg-background" />
-                  <InputOTPSlot index={1} className="border-2 border-foreground bg-background" />
-                  <InputOTPSlot index={2} className="border-2 border-foreground bg-background" />
-                  <InputOTPSlot index={3} className="border-2 border-foreground bg-background" />
-                  <InputOTPSlot index={4} className="border-2 border-foreground bg-background" />
-                  <InputOTPSlot index={5} className="border-2 border-foreground bg-background" />
-                </InputOTPGroup>
-              </InputOTP>
+          /* Check Email Step */
+          <div className="bg-card border-2 border-foreground p-6 space-y-4">
+            <h2 className="font-display text-xl text-foreground text-center">CHECK EMAIL</h2>
+            <div className="flex flex-col items-center py-4">
+              <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mb-4">
+                <CheckCircle2 className="w-8 h-8 text-primary" />
+              </div>
+              <p className="font-mono text-sm text-center mb-2">
+                We sent a magic link to:
+              </p>
+              <p className="font-mono text-sm text-foreground font-bold text-center">
+                {email}
+              </p>
+              <p className="font-mono text-xs text-muted-foreground text-center mt-4 max-w-[250px]">
+                Click the link in the email to automatically sign in.
+                You can close this tab if you open the link in a new one.
+              </p>
             </div>
 
-            {/* Verify Button */}
+            {/* Resend Button */}
             <button
-              type="submit"
-              disabled={loading || otpCode.length !== 6}
+              type="button"
+              onClick={handleResendLink}
+              disabled={loading || resendCooldown > 0}
               className={cn(
-                "w-full py-3 bg-primary text-primary-foreground border-2 border-foreground font-mono text-sm flex items-center justify-center gap-2 hover-brutal",
-                "disabled:opacity-50 disabled:cursor-not-allowed"
+                "w-full py-3 bg-background border-2 border-foreground font-mono text-sm flex items-center justify-center gap-2 hover:bg-muted transition-colors",
+                resendCooldown > 0 ? "opacity-50 cursor-not-allowed" : ""
               )}
             >
               {loading ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  VERIFYING...
-                </>
+                <RefreshCw className="w-4 h-4 animate-spin" />
               ) : (
-                <>
-                  VERIFY & LOGIN
-                  <KeyRound className="w-4 h-4" />
-                </>
+                <Mail className="w-4 h-4" />
               )}
+              {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend Link"}
             </button>
 
             {/* Back Button */}
             <button
               type="button"
               onClick={resetToEmail}
-              className="w-full py-2 font-mono text-xs text-muted-foreground hover:text-foreground"
+              className="w-full py-2 font-mono text-xs text-muted-foreground hover:text-foreground text-center"
             >
               ← Use different email
             </button>
-
-            {/* Resend Button */}
-            <button
-              type="button"
-              onClick={handleResendOtp}
-              disabled={loading || resendCooldown > 0}
-              className={cn(
-                "w-full py-2 font-mono text-xs flex items-center justify-center gap-1",
-                resendCooldown > 0
-                  ? "text-muted-foreground cursor-not-allowed"
-                  : "text-primary hover:underline"
-              )}
-            >
-              {resendCooldown > 0 ? (
-                `Resend code in ${resendCooldown}s`
-              ) : (
-                <>
-                  <RefreshCw className="w-3 h-3" />
-                  Resend code
-                </>
-              )}
-            </button>
-          </form>
+          </div>
         )}
       </div>
     </div>

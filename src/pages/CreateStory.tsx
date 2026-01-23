@@ -134,10 +134,10 @@ export default function CreateStory() {
       return;
     }
 
-    if (file.size > 15 * 1024 * 1024) { // 15MB limit for stories
+    if (file.size > 200 * 1024 * 1024) { // 200MB limit
       toast({
         title: "File too large",
-        description: "Max 15MB allowed for stories",
+        description: "Max 200MB allowed for stories",
         variant: "destructive"
       });
       return;
@@ -303,7 +303,7 @@ export default function CreateStory() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/*,video/*"
                 onChange={handleFileSelect}
                 className="hidden"
               />
