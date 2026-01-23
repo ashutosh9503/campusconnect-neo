@@ -62,6 +62,7 @@ export default function Saved() {
                     comments: 0,
                     timestamp: new Date(post.created_at).toLocaleDateString(),
                     is_saved: true,
+                    user_id: post.user_id
                   }}
                 />
               </div>

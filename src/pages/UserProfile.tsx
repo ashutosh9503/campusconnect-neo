@@ -186,6 +186,52 @@ export default function UserProfile() {
             <p className="font-mono text-sm text-foreground mt-4">{profile.bio}</p>
           )}
 
+          {/* Social Links */}
+          {profile.social_links && (
+            <div className="flex items-center gap-3 mt-4">
+              {profile.social_links.instagram && (
+                <a
+                  href={`https://instagram.com/${profile.social_links.instagram.replace('@', '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 bg-muted border-2 border-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
+                >
+                  <Instagram className="w-5 h-5" />
+                </a>
+              )}
+              {profile.social_links.twitter && (
+                <a
+                  href={`https://twitter.com/${profile.social_links.twitter.replace('@', '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 bg-muted border-2 border-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
+                >
+                  <Twitter className="w-5 h-5" />
+                </a>
+              )}
+              {profile.social_links.linkedin && (
+                <a
+                  href={profile.social_links.linkedin.startsWith('http') ? profile.social_links.linkedin : `https://${profile.social_links.linkedin}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 bg-muted border-2 border-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
+                >
+                  <Linkedin className="w-5 h-5" />
+                </a>
+              )}
+              {profile.social_links.website && (
+                <a
+                  href={profile.social_links.website.startsWith('http') ? profile.social_links.website : `https://${profile.social_links.website}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-2 bg-muted border-2 border-foreground hover:bg-primary hover:text-primary-foreground transition-colors"
+                >
+                  <Globe className="w-5 h-5" />
+                </a>
+              )}
+            </div>
+          )}
+
           {/* Stats */}
           <div className="grid grid-cols-3 gap-4 mt-4">
             <div className="text-center">

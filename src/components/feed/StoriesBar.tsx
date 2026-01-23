@@ -193,7 +193,7 @@ export function StoriesBar() {
           className="flex items-center gap-4 overflow-x-auto scrollbar-hide pb-2"
         >
           {/* Add Story Button */}
-          <Link to="/stories/create" className="flex-shrink-0 flex flex-col items-center gap-2">
+          <Link to="/create-story" className="flex-shrink-0 flex flex-col items-center gap-2">
             <div className="relative">
               <div className="w-16 h-16 bg-muted border-2 border-dashed border-primary flex items-center justify-center hover:bg-muted/80 transition-colors">
                 <Camera className="w-6 h-6 text-primary" />

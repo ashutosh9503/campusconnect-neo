@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.32.0";
 import { JWT } from "https://esm.sh/google-auth-library@9.0.0";
@@ -136,7 +137,7 @@ serve(async (req) => {
             { headers: { "Content-Type": "application/json" } }
         );
 
-    } catch (error) {
+    } catch (error: any) {
         return new Response(
             JSON.stringify({ error: error.message }),
             { status: 500, headers: { "Content-Type": "application/json" } }
