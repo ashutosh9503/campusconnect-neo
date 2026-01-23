@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { Database } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
+import { SharePostModal } from "@/components/feed/SharePostModal";
 
 type ReactionType = Database["public"]["Enums"]["reaction_type"];
 
@@ -71,6 +72,7 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
   const [showComments, setShowComments] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
 
@@ -139,17 +141,7 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
   };
 
   const handleShare = async () => {
-    const url = `${window.location.origin}/post/${post.id}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      toast({ title: "Link copied to clipboard!" });
-    } catch {
-      toast({
-        title: "Failed to copy",
-        description: "Could not copy link to clipboard",
-        variant: "destructive"
-      });
-    }
+    setShowShareModal(true);
   };
 
   const handleSubmitComment = async () => {
@@ -454,6 +446,11 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
           </div>
         </div>
       )}
+      <SharePostModal
+        post={post}
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+      />
     </article>
   );
 }

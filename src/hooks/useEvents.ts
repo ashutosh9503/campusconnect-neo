@@ -25,7 +25,7 @@ export function useEvents() {
   const fetchEvents = useCallback(async () => {
     try {
       setLoading(true);
-      
+
       // Fetch all events ordered by date - use type assertion for new table
       const { data: eventsData, error } = await (supabase
         .from("events" as any) as any)
@@ -38,13 +38,13 @@ export function useEvents() {
       // Get registration counts for all events
       const eventIds = (eventsData as any[])?.map((e: any) => e.id) || [];
       let registrationCountsMap = new Map<string, number>();
-      
+
       if (eventIds.length > 0) {
         const { data: registrationsData } = await (supabase
           .from("event_registrations" as any) as any)
           .select("event_id")
           .in("event_id", eventIds);
-        
+
         (registrationsData as any[] || []).forEach((r: any) => {
           registrationCountsMap.set(r.event_id, (registrationCountsMap.get(r.event_id) || 0) + 1);
         });
@@ -58,7 +58,7 @@ export function useEvents() {
           .select("event_id")
           .eq("user_id", user.id)
           .in("event_id", eventIds);
-        
+
         userRegistrationsSet = new Set((userRegistrations as any[] || []).map((r: any) => r.event_id));
       }
 
@@ -155,5 +155,23 @@ export function useEvents() {
     }
   };
 
-  return { events, loading, createEvent, registerForEvent, unregisterFromEvent, refetch: fetchEvents };
+  const deleteEvent = async (eventId: string) => {
+    if (!user) return { error: new Error("Not logged in") };
+
+    try {
+      const { error } = await (supabase
+        .from("events" as any) as any)
+        .delete()
+        .eq("id", eventId)
+        .eq("created_by", user.id);
+
+      if (error) throw error;
+      await fetchEvents();
+      return { error: null };
+    } catch (err: any) {
+      return { error: err };
+    }
+  };
+
+  return { events, loading, createEvent, registerForEvent, unregisterFromEvent, deleteEvent, refetch: fetchEvents };
 }

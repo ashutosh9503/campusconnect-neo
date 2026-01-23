@@ -13,6 +13,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
+import EmojiPicker from "emoji-picker-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export default function ChatConversation() {
   const { id } = useParams();
@@ -147,6 +149,10 @@ export default function ChatConversation() {
       setMediaPreview(URL.createObjectURL(file));
       sendTyping(true);
     }
+  };
+
+  const onEmojiClick = (emojiObject: any) => {
+    setNewMessage((prev) => prev + emojiObject.emoji);
   };
 
   // Double tap logic
@@ -353,9 +359,16 @@ export default function ChatConversation() {
             >
               <Image className="w-5 h-5 text-foreground" />
             </button>
-            <Link to="/chat" className="md:hidden p-2 hover:bg-muted transition-colors">
-              <Smile className="w-5 h-5 text-foreground" />
-            </Link>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="p-2 hover:bg-muted transition-colors border-2 border-foreground">
+                  <Smile className="w-5 h-5 text-foreground" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0 border-none">
+                <EmojiPicker onEmojiClick={onEmojiClick} theme={"dark" as any} width="100%" />
+              </PopoverContent>
+            </Popover>
 
             <input
               type="text"

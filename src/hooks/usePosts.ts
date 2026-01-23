@@ -33,13 +33,20 @@ export interface Post {
   is_saved?: boolean;
 }
 
-export function usePosts(userId?: string, limit = 20) {
+export function usePosts(userId?: string, limit = 20, options?: { enabled?: boolean }) {
   const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const enabled = options?.enabled ?? true;
+
   const fetchPosts = useCallback(async () => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -189,7 +196,7 @@ export function usePosts(userId?: string, limit = 20) {
     } finally {
       setLoading(false);
     }
-  }, [userId, limit, user]);
+  }, [userId, limit, user, enabled]);
 
   useEffect(() => {
     fetchPosts();

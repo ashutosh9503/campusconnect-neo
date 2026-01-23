@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
 import { MobileNav } from "./MobileNav";
+import { MobileCreateButton } from "@/components/layout/MobileCreateButton";
 import { NoticeWall } from "@/components/feed/NoticeWall";
 import { TrendingPanel } from "@/components/feed/TrendingPanel";
 
@@ -17,7 +18,6 @@ export function MainLayout({ children, showSidebars = true }: MainLayoutProps) {
         <Sidebar />
       </div>
 
-      {/* Mobile Navigation */}
       <MobileNav />
 
       {/* Main Content Area */}

@@ -44,7 +44,7 @@ export default function UserProfile() {
   const { profile, loading: profileLoading } = useProfile(profileUserId || undefined);
   const { followersCount, followingCount, isFollowing, toggleFollow, loading: followLoading } = useFollowStats(profileUserId || undefined);
   const postsCount = usePostsCount(profileUserId || undefined);
-  const { posts, loading: postsLoading, refetch } = usePosts(profileUserId || undefined);
+  const { posts, loading: postsLoading, refetch } = usePosts(profileUserId || undefined, 20, { enabled: !!profileUserId });
 
   const isOwnProfile = user?.id === profileUserId;
 

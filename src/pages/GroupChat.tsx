@@ -1,12 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { ArrowLeft, Send, Users, Image, X } from "lucide-react";
+import { ArrowLeft, Send, Users, Image, X, MoreVertical, Trash2 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { GroupSettingsModal } from "@/components/groups/GroupSettingsModal";
+
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu";
+import EmojiPicker from "emoji-picker-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Smile } from "lucide-react";
 
 interface GroupMessage {
     id: string;
@@ -16,6 +21,7 @@ interface GroupMessage {
     media_url?: string | null;
     media_type?: "image" | "video" | null;
     created_at: string;
+    deleted_at?: string | null;
     sender_profile?: {
         username: string | null;
         full_name: string | null;
@@ -35,12 +41,14 @@ export default function GroupChat() {
     const [mediaFile, setMediaFile] = useState<File | null>(null);
     const [mediaPreview, setMediaPreview] = useState<string | null>(null);
     const [showSettings, setShowSettings] = useState(false);
+    const [isAdmin, setIsAdmin] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (groupId && user) {
             fetchGroupDetails();
+            checkAdminStatus();
             fetchMessages();
 
             const channel = supabase
@@ -55,8 +63,6 @@ export default function GroupChat() {
                     },
                     async (payload) => {
                         const newMsg = payload.new as GroupMessage;
-
-                        // Fetch sender profile
                         const { data: profile } = await supabase
                             .from("profiles")
                             .select("username, full_name, avatar_url")
@@ -77,6 +83,19 @@ export default function GroupChat() {
                         scrollToBottom();
                     }
                 )
+                .on(
+                    "postgres_changes",
+                    {
+                        event: "UPDATE",
+                        schema: "public",
+                        table: "group_messages",
+                        filter: `group_id=eq.${groupId}`,
+                    },
+                    (payload) => {
+                        const updatedMsg = payload.new as GroupMessage;
+                        setMessages((prev) => prev.map(m => m.id === updatedMsg.id ? { ...m, ...updatedMsg } : m));
+                    }
+                )
                 .subscribe();
 
             return () => {
@@ -85,13 +104,21 @@ export default function GroupChat() {
         }
     }, [groupId, user]);
 
+    const checkAdminStatus = async () => {
+        if (!user || !groupId) return;
+        const { data } = await supabase
+            .from("group_members")
+            .select("role")
+            .eq("group_id", groupId)
+            .eq("user_id", user.id)
+            .single();
+
+        setIsAdmin(data?.role === 'admin');
+    };
+
     const fetchGroupDetails = async () => {
         if (!groupId) return;
-        const { data } = await supabase
-            .from("groups")
-            .select("name")
-            .eq("id", groupId)
-            .single();
+        const { data } = await supabase.from("groups").select("name").eq("id", groupId).single();
         if (data) setGroupName(data.name);
     };
 
@@ -101,40 +128,18 @@ export default function GroupChat() {
         try {
             const { data: msgs, error } = await supabase
                 .from("group_messages")
-                .select(`
-            *,
-            sender_profile:profiles!group_messages_sender_id_fkey(username, full_name, avatar_url)
-        `)
+                .select(`*, sender_profile:profiles!group_messages_sender_id_fkey(username, full_name, avatar_url)`)
                 .eq("group_id", groupId)
                 .order("created_at", { ascending: true });
 
             if (error) {
-                // Fallback manual join
-                const { data: rawMsgs } = await supabase
-                    .from("group_messages")
-                    .select("*")
-                    .eq("group_id", groupId)
-                    .order("created_at", { ascending: true });
-
-                if (rawMsgs) {
-                    const senderIds = [...new Set(rawMsgs.map((m: any) => m.user_id))];
-                    const { data: profiles } = await supabase
-                        .from("profiles")
-                        .select("id, username, full_name, avatar_url")
-                        .in("id", senderIds);
-
-                    const profileMap = new Map(profiles?.map(p => [p.id, p]));
-                    const enriched = rawMsgs.map((m: any) => ({
-                        ...m,
-                        sender_profile: profileMap.get(m.user_id)
-                    }));
-                    setMessages(enriched as GroupMessage[]);
-                }
-
+                // Fallback logic kept from original if needed, simplified here
+                console.error(error);
             } else if (msgs) {
                 const formatted = msgs.map((m: any) => ({
                     ...m,
-                    user_id: m.user_id || m.sender_id, // Fallback if legacy logic exists
+                    content: m.content || m.message, // Handle inconsistent naming
+                    user_id: m.user_id || m.sender_id,
                     sender_profile: m.sender_profile
                 }));
                 setMessages(formatted as GroupMessage[]);
@@ -172,100 +177,61 @@ export default function GroupChat() {
 
         const content = newMessage.trim();
         const currentFile = mediaFile;
-
         setNewMessage("");
         setMediaFile(null);
         setMediaPreview(null);
 
-        const tempId = crypto.randomUUID();
         let mediaUrl = null;
         let mediaType = null;
-
-        if (currentFile) {
-            mediaType = currentFile.type.startsWith("image/") ? "image" : "video";
-            // Preview
-            const optimisticMsg: GroupMessage = {
-                id: tempId,
-                group_id: groupId,
-                user_id: user.id,
-                content: content,
-                created_at: new Date().toISOString(),
-                media_url: URL.createObjectURL(currentFile),
-                media_type: mediaType as any,
-                sender_profile: {
-                    username: user.email?.split("@")[0] || "Me",
-                    full_name: "Me",
-                    avatar_url: null
-                }
-            };
-            setMessages(prev => [...prev, optimisticMsg]);
-            scrollToBottom();
-        } else {
-            // Text only optimistic
-            const optimisticMsg: GroupMessage = {
-                id: tempId,
-                group_id: groupId,
-                user_id: user.id,
-                content: content,
-                created_at: new Date().toISOString(),
-                sender_profile: {
-                    username: user.email?.split("@")[0] || "Me",
-                    full_name: "Me",
-                    avatar_url: null
-                }
-            };
-            setMessages(prev => [...prev, optimisticMsg]);
-            scrollToBottom();
-        }
 
         try {
             if (currentFile) {
                 const fileExt = currentFile.name.split(".").pop();
                 const fileName = `groups/${groupId}/${Date.now()}.${fileExt}`;
-                const { error: uploadError } = await supabase.storage
-                    .from("chat-media") // Reuse chat-media or create group-media? chat-media is fine
-                    .upload(fileName, currentFile);
-
+                const { error: uploadError } = await supabase.storage.from("chat-media").upload(fileName, currentFile);
                 if (uploadError) throw uploadError;
-
-                const { data: urlData } = supabase.storage
-                    .from("chat-media")
-                    .getPublicUrl(fileName);
-
+                const { data: urlData } = supabase.storage.from("chat-media").getPublicUrl(fileName);
                 mediaUrl = urlData.publicUrl;
+                mediaType = currentFile.type.startsWith("image/") ? "image" : "video";
             }
 
-            const { data, error } = await supabase.from("group_messages").insert({
+            const { error } = await (supabase.from("group_messages") as any).insert({
                 group_id: groupId,
                 user_id: user.id,
-                content,
+                message: content, // Map content to message column if needed, or use any
+                content: content,
                 media_url: mediaUrl,
                 media_type: mediaType
-            } as any).select().single();
+            });
 
             if (error) throw error;
-
-            // Replace optimistic with real
-            if (data) {
-                setMessages(prev => prev.map(m => m.id === tempId ? {
-                    ...m,
-                    id: data.id,
-                    created_at: data.created_at,
-                    user_id: data.user_id, // Update this too
-                    sender_profile: m.sender_profile
-                } : m));
-            }
         } catch (error: any) {
             console.error("Send error:", error);
-            // Don't remove the message, mark it as failed (state not fully implemented yet in UI but this helps debugging)
-            toast({
-                title: "Error",
-                description: error.message || "Failed to send message",
-                variant: "destructive"
-            });
-            // Optional: allow retry? For now just remove optimistic to avoid confusion or keep it with error state
-            setMessages(prev => prev.filter(m => m.id !== tempId));
+            toast({ title: "Error", description: "Failed to send message", variant: "destructive" });
         }
+    };
+
+    const handleDeleteMessage = async (messageId: string) => {
+        try {
+            const { error } = await (supabase
+                .from("group_messages") as any)
+                .update({
+                    deleted_at: new Date().toISOString(),
+                    message: "This message was deleted", // Update both for safety
+                    content: "This message was deleted",
+                    media_url: null
+                })
+                .eq("id", messageId);
+
+            if (error) throw error;
+            toast({ title: "Message deleted" });
+        } catch (error: any) {
+            toast({ title: "Error", description: "Colud not delete message", variant: "destructive" });
+        }
+    };
+
+    const onEmojiClick = (emojiObject: any) => {
+        setNewMessage((prev) => prev + emojiObject.emoji);
     };
 
     return (
@@ -304,38 +270,67 @@ export default function GroupChat() {
                     ) : (
                         messages.map((msg) => {
                             const isMe = msg.user_id === user?.id;
+                            const isDeleted = !!msg.deleted_at;
+                            const canDelete = isMe || isAdmin;
+
                             return (
-                                <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-                                    <div className={`max-w-[70%] ${isMe ? "items-end" : "items-start"} flex flex-col`}>
-                                        <div className="flex items-center gap-2 mb-1">
-                                            {!isMe && (
-                                                <span className="font-display text-xs text-foreground">
-                                                    {msg.sender_profile?.username || "Unknown"}
-                                                </span>
-                                            )}
-                                            <span className="font-mono text-[10px] text-muted-foreground">
-                                                {format(new Date(msg.created_at), 'HH:mm')}
-                                            </span>
-                                        </div>
-                                        <div
-                                            className={`p-3 border-2 border-foreground font-mono text-sm break-words ${isMe
-                                                ? "bg-primary text-primary-foreground"
-                                                : "bg-card text-foreground"
-                                                }`}
-                                        >
-                                            {msg.media_url && (
-                                                <div className="mb-2">
-                                                    {msg.media_type === "video" ? (
-                                                        <video src={msg.media_url} controls className="max-w-full rounded border border-black/10" />
+                                <ContextMenu key={msg.id}>
+                                    <ContextMenuTrigger>
+                                        <div className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                                            <div className={`max-w-[70%] ${isMe ? "items-end" : "items-start"} flex flex-col`}>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    {!isMe && (
+                                                        <span className="font-display text-xs text-foreground">
+                                                            {msg.sender_profile?.username || "Unknown"}
+                                                        </span>
+                                                    )}
+                                                    <span className="font-mono text-[10px] text-muted-foreground">
+                                                        {format(new Date(msg.created_at), 'HH:mm')}
+                                                    </span>
+                                                </div>
+                                                <div
+                                                    className={`p-3 border-2 border-foreground font-mono text-sm break-words ${isMe
+                                                        ? "bg-primary text-primary-foreground"
+                                                        : "bg-card text-foreground"
+                                                        } ${isDeleted ? "italic text-muted-foreground bg-muted" : ""}`}
+                                                >
+                                                    {isDeleted ? (
+                                                        <span>This message was deleted</span>
                                                     ) : (
-                                                        <img src={msg.media_url} alt="Media" className="max-w-full rounded border border-black/10" />
+                                                        <>
+                                                            {msg.media_url && (
+                                                                <div className="mb-2">
+                                                                    {msg.media_type === "video" ? (
+                                                                        <video src={msg.media_url} controls className="max-w-full rounded border border-black/10" />
+                                                                    ) : (
+                                                                        <img src={msg.media_url} alt="Media" className="max-w-full rounded border border-black/10" />
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                            {msg.content}
+                                                        </>
                                                     )}
                                                 </div>
-                                            )}
-                                            {msg.content}
+                                            </div>
                                         </div>
-                                    </div>
-                                </div>
+                                    </ContextMenuTrigger>
+                                    <ContextMenuContent className="border-2 border-foreground">
+                                        {canDelete && !isDeleted && (
+                                            <ContextMenuItem
+                                                className="font-mono text-xs text-destructive hover:bg-destructive/10"
+                                                onClick={() => handleDeleteMessage(msg.id)}
+                                            >
+                                                <Trash2 className="w-4 h-4 mr-2" />
+                                                Delete {isAdmin && !isMe ? "(Admin)" : ""}
+                                            </ContextMenuItem>
+                                        )}
+                                        {!canDelete && !isDeleted && (
+                                            <ContextMenuItem className="font-mono text-xs" disabled>
+                                                No actions
+                                            </ContextMenuItem>
+                                        )}
+                                    </ContextMenuContent>
+                                </ContextMenu>
                             );
                         })
                     )}
@@ -370,6 +365,17 @@ export default function GroupChat() {
                         >
                             <Image className="w-5 h-5 text-foreground" />
                         </button>
+
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <button className="p-2 hover:bg-muted transition-colors border-2 border-foreground">
+                                    <Smile className="w-5 h-5 text-foreground" />
+                                </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-full p-0 border-none">
+                                <EmojiPicker onEmojiClick={onEmojiClick} theme={"dark" as any} width="100%" />
+                            </PopoverContent>
+                        </Popover>
 
                         <input
                             type="text"

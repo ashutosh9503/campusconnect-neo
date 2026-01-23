@@ -40,7 +40,7 @@ const typeLabels: Record<string, string> = {
 
 export default function Events() {
   const { user } = useAuth();
-  const { events, loading, createEvent, registerForEvent, unregisterFromEvent } = useEvents();
+  const { events, loading, createEvent, registerForEvent, unregisterFromEvent, deleteEvent } = useEvents();
   const { toast } = useToast();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -123,7 +123,7 @@ export default function Events() {
         <div className="p-4 border-b-2 border-foreground sticky top-0 bg-background z-10">
           <div className="flex items-center justify-between">
             <h1 className="font-display text-xl text-foreground">UPCOMING EVENTS</h1>
-            <button 
+            <button
               onClick={() => setShowCreateDialog(true)}
               className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground border-2 border-foreground font-mono text-sm hover-brutal"
             >
@@ -147,12 +147,23 @@ export default function Events() {
               >
                 {/* Type Badge */}
                 <div className={cn(
-                  "px-4 py-1 text-center",
+                  "px-4 py-1 text-center relative",
                   typeColors[event.type] || typeColors.general
                 )}>
                   <span className="font-display text-xs text-foreground">
                     {typeLabels[event.type] || "EVENT"}
                   </span>
+                  {user && user.id === event.created_by && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm("Delete this event?")) deleteEvent(event.id);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-black/20 rounded text-white"
+                    >
+                      <img src="https://api.iconify.design/lucide:trash-2.svg" className="w-3 h-3 text-white" />
+                    </button>
+                  )}
                 </div>
 
                 <div className="p-4">

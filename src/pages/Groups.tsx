@@ -131,14 +131,17 @@ export default function Groups() {
                 <div className="mt-4">
                   <button
                     onClick={() => handleJoinLeave(group.id, group.is_member || false)}
+                    disabled={(!group.is_member && group.is_private)}
                     className={cn(
                       "w-full py-2 border-2 border-foreground font-mono text-xs transition-all",
                       group.is_member
                         ? "bg-muted text-muted-foreground"
-                        : "bg-primary text-primary-foreground hover:bg-primary/90"
+                        : (group.is_private
+                          ? "bg-muted text-muted-foreground cursor-not-allowed opacity-70"
+                          : "bg-primary text-primary-foreground hover:bg-primary/90")
                     )}
                   >
-                    {group.is_member ? "JOINED" : "JOIN GROUP"}
+                    {group.is_member ? "JOINED" : (group.is_private ? "INVITE ONLY" : "JOIN GROUP")}
                   </button>
                   {group.is_member && (
                     <Link

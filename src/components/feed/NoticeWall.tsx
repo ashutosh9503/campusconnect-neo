@@ -12,6 +12,7 @@ interface Notice {
   title: string;
   content: string;
   created_at: string;
+  created_by?: string;
 }
 
 export function NoticeWall() {
@@ -81,6 +82,17 @@ export function NoticeWall() {
         description: err.message,
         variant: "destructive"
       });
+    }
+  };
+
+  const handleDeleteNotice = async (id: string) => {
+    if (!confirm("Delete this notice?")) return;
+    try {
+      const { error } = await supabase.from("notices").delete().eq("id", id);
+      if (error) throw error;
+      toast({ title: "Notice deleted" });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     }
   };
 
@@ -155,7 +167,7 @@ export function NoticeWall() {
             <div
               key={notice.id}
               className={cn(
-                "p-3 border-l-4 bg-muted/30 hover:bg-muted/50 transition-colors animate-fade-in",
+                "p-3 border-l-4 bg-muted/30 hover:bg-muted/50 transition-colors animate-fade-in group relative",
                 notice.type === "urgent" && "border-l-red-500",
                 notice.type === "event" && "border-l-blue-500",
                 notice.type === "academic" && "border-l-green-500",
@@ -180,6 +192,14 @@ export function NoticeWall() {
               <p className="text-xs text-muted-foreground font-mono leading-relaxed">
                 {notice.content}
               </p>
+              {user && user.id === notice.created_by && (
+                <button
+                  onClick={() => handleDeleteNotice(notice.id)}
+                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1 text-destructive hover:bg-destructive/10 rounded transition-all"
+                >
+                  <img src="https://api.iconify.design/lucide:trash-2.svg" className="w-3 h-3" />
+                </button>
+              )}
             </div>
           ))
         )}
