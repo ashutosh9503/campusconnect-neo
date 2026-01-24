@@ -139,7 +139,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
             const pc = createPeerConnection();
             stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
-            const offer = await pc.createOffer();
+            const offer = await pc.createOffer({
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: isVideo
+            });
             await pc.setLocalDescription(offer);
 
             await supabase.channel(`calls:${targetUserId}`).send({

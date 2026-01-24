@@ -19,6 +19,7 @@ interface GroupSettingsModalProps {
 interface Member {
     user_id: string;
     role: "admin" | "moderator" | "member";
+    status?: "joined" | "pending" | "invited";
     profile: {
         username: string;
         full_name: string;
@@ -62,6 +63,7 @@ export function GroupSettingsModal({ groupId, isOpen, onClose, onGroupDeleted }:
                 .select(`
           user_id,
           role,
+          status,
           profile:profiles!group_members_user_id_fkey(username, full_name, avatar_url)
         `)
                 .eq("group_id", groupId);
@@ -120,12 +122,13 @@ export function GroupSettingsModal({ groupId, isOpen, onClose, onGroupDeleted }:
                 .insert({
                     group_id: groupId,
                     user_id: userId,
-                    role: "member"
+                    role: "member",
+                    status: "pending"
                 });
 
             if (error) throw error;
 
-            toast({ title: "Success", description: "User added to group" });
+            toast({ title: "Invitation Sent", description: "User has been invited to the group" });
             setSearchTerm("");
             setSearchResults([]);
             fetchMembers();
@@ -285,7 +288,9 @@ export function GroupSettingsModal({ groupId, isOpen, onClose, onGroupDeleted }:
                                                         {member.role === "admin" && <Shield className="w-3 h-3 text-primary fill-current" />}
                                                         {member.role === "moderator" && <Shield className="w-3 h-3 text-secondary fill-current" />}
                                                     </p>
-                                                    <p className="font-mono text-[10px] text-muted-foreground capitalize">{member.role}</p>
+                                                    <p className="font-mono text-[10px] text-muted-foreground capitalize">
+                                                        {member.role === "admin" ? "Admin" : member.status === "pending" ? "Invited" : "Member"}
+                                                    </p>
                                                 </div>
                                             </div>
 

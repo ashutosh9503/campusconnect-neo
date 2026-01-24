@@ -220,6 +220,42 @@ export function usePosts(userId?: string, limit = 20, options?: { enabled?: bool
 
   const deletePost = async (postId: string) => {
     try {
+      // 1. Fetch post to get media info
+      const { data: post } = await supabase
+        .from("posts")
+        .select("media_url")
+        .eq("id", postId)
+        .single();
+
+      const { data: mediaItems } = await supabase
+        .from("post_media" as any)
+        .select("url")
+        .eq("post_id", postId);
+
+      // 2. Import helper dynamically or use if available (assuming import added at top)
+      const { extractFilePathFromUrl, deleteStorageFile } = await import("@/utils/storageUtils");
+
+      // 3. Collect all paths to delete
+      const pathsToDelete: string[] = [];
+
+      if (post?.media_url) {
+        const path = extractFilePathFromUrl(post.media_url, "posts-media");
+        if (path) pathsToDelete.push(path);
+      }
+
+      if (mediaItems && mediaItems.length > 0) {
+        mediaItems.forEach((item: any) => {
+          const path = extractFilePathFromUrl(item.url, "posts-media");
+          if (path) pathsToDelete.push(path);
+        });
+      }
+
+      // 4. Delete files (parallel)
+      if (pathsToDelete.length > 0) {
+        await Promise.all(pathsToDelete.map(path => deleteStorageFile("posts-media", path)));
+      }
+
+      // 5. Delete DB Row
       const { error } = await supabase
         .from("posts")
         .delete()
@@ -230,6 +266,7 @@ export function usePosts(userId?: string, limit = 20, options?: { enabled?: bool
       setPosts(prev => prev.filter(p => p.id !== postId));
       return { error: null };
     } catch (err: any) {
+      console.error("Delete post error:", err);
       return { error: err };
     }
   };

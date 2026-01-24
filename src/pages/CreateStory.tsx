@@ -134,10 +134,10 @@ export default function CreateStory() {
       return;
     }
 
-    if (file.size > 200 * 1024 * 1024) { // 200MB limit
+    if (file.size > 50 * 1024 * 1024) { // 50MB limit
       toast({
         title: "File too large",
-        description: "Max 200MB allowed for stories",
+        description: "Max 50MB allowed for stories",
         variant: "destructive"
       });
       return;

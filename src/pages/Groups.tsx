@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Users, Plus, Lock, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
 import { useGroups } from "@/hooks/useGroups";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -28,6 +29,59 @@ export default function Groups() {
     description: "",
     isPrivate: false,
   });
+  const [invitations, setInvitations] = useState<any[]>([]);
+
+  // Fetch invitations on load
+  useEffect(() => {
+    const fetchInvitations = async () => {
+      if (!user) return;
+      const { data } = await (supabase
+        .from('group_members')
+        .select(`
+                group:groups(*),
+                role,
+                status
+            `) as any)
+        .eq('user_id', user.id)
+        .eq('status', 'pending');
+
+      if (data) {
+        setInvitations(data.map((i: any) => ({ ...i.group, invite_role: i.role }))); // Flatten for UI
+      }
+    };
+    fetchInvitations();
+  }, [user]);
+
+  const handleInvite = async (groupId: string, accept: boolean) => {
+    if (!user) return;
+    try {
+      if (accept) {
+        const { error } = await supabase
+          .from('group_members')
+          .update({ status: 'joined' })
+          .eq('group_id', groupId)
+          .eq('user_id', user.id);
+        if (error) throw error;
+        toast({ title: "Joined Group", description: "You accepted the invitation" });
+      } else {
+        const { error } = await supabase
+          .from('group_members')
+          .delete()
+          .eq('group_id', groupId)
+          .eq('user_id', user.id);
+        if (error) throw error;
+        toast({ title: "Declined", description: "Invitation declined" });
+      }
+      // Refresh invites
+      setInvitations(prev => prev.filter(i => i.id !== groupId));
+      // Refresh groups list might be needed if accepted
+      // For simplicity, we just update local state or reload window if needed, but existing useGroups hook might not auto-update?
+      // useGroups listens to subscriptions? "groups" table changes might trigger it, but member changes also?
+      // Let's assume user accepts -> they see group in main list.
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
 
   const handleCreateGroup = async () => {
     if (!newGroup.name.trim()) {
@@ -87,6 +141,27 @@ export default function Groups() {
             </button>
           </div>
         </div>
+
+        {/* Invitations Section */}
+        {invitations.length > 0 && (
+          <div className="p-4 bg-muted/20 border-b-2 border-foreground">
+            <h2 className="font-display text-lg text-foreground mb-4">PENDING INVITATIONS</h2>
+            <div className="space-y-4">
+              {invitations.map(invite => (
+                <div key={invite.id} className="flex items-center justify-between bg-card border-2 border-foreground p-4">
+                  <div>
+                    <h3 className="font-mono text-sm font-bold">{invite.name}</h3>
+                    <p className="font-mono text-xs text-muted-foreground">{invite.description}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => handleInvite(invite.id, true)} className="px-3 py-1 bg-primary text-primary-foreground border-2 border-foreground font-mono text-xs hover-brutal">ACCEPT</button>
+                    <button onClick={() => handleInvite(invite.id, false)} className="px-3 py-1 bg-destructive text-destructive-foreground border-2 border-foreground font-mono text-xs hover-brutal">DECLINE</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Groups Grid */}
         <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">

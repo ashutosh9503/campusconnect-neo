@@ -63,7 +63,14 @@ export function SharePostModal({ post, isOpen, onClose }: SharePostModalProps) {
                     }
                     return null;
                 }));
-                setRecentChats(enriched.filter(Boolean));
+                // Deduplicate by user id
+                const uniqueChats = new Map();
+                enriched.forEach((chat: any) => {
+                    if (chat && !uniqueChats.has(chat.id)) {
+                        uniqueChats.set(chat.id, chat);
+                    }
+                });
+                setRecentChats(Array.from(uniqueChats.values()));
             }
         } catch (e) {
             console.error(e);

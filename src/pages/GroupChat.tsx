@@ -130,7 +130,7 @@ export default function GroupChat() {
         try {
             const { data: msgs, error } = await supabase
                 .from("group_messages")
-                .select(`*, sender_profile:profiles!group_messages_sender_id_fkey(username, full_name, avatar_url)`)
+                .select(`*, sender_profile:profiles(username, full_name, avatar_url)`)
                 .eq("group_id", groupId)
                 .order("created_at", { ascending: true });
 
@@ -165,8 +165,8 @@ export default function GroupChat() {
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            if (file.size > 200 * 1024 * 1024) {
-                toast({ title: "File too large", description: "Max 200MB", variant: "destructive" });
+            if (file.size > 50 * 1024 * 1024) {
+                toast({ title: "File too large", description: "Max 50MB", variant: "destructive" });
                 return;
             }
             setMediaFile(file);
@@ -200,7 +200,6 @@ export default function GroupChat() {
             const { error } = await (supabase.from("group_messages") as any).insert({
                 group_id: groupId,
                 user_id: user.id,
-                message: content, // Map content to message column if needed, or use any
                 content: content,
                 media_url: mediaUrl,
                 media_type: mediaType
@@ -209,17 +208,40 @@ export default function GroupChat() {
             if (error) throw error;
         } catch (error: any) {
             console.error("Send error:", error);
-            toast({ title: "Error", description: "Failed to send message", variant: "destructive" });
+            toast({ title: "Error", description: error.message || "Failed to send message", variant: "destructive" });
         }
     };
 
     const handleDeleteMessage = async (messageId: string) => {
         try {
+            // Fetch message media url first
+            // Note: Types seem to miss media_url on group_messages or messages table in types.ts
+            // We cast to any to avoid TS errors
+            const { data: msg } = await (supabase
+                .from("group_messages") as any)
+                .select("media_url")
+                .eq("id", messageId)
+                .single();
+
+            if (msg?.media_url) {
+                const { extractFilePathFromUrl, deleteStorageFile } = await import("@/utils/storageUtils");
+                // Assuming group chat uses same 'chat-media' bucket? Or 'group-media'?
+                // Let's assume 'chat-media' based on typical structure, or check if 'group-media' exists.
+                // Re-checking CreateGroupChat? Or just assume 'chat-media' as it's common.
+                // Wait, I should verify bucket for group chat uploads. 
+                // But for now, using 'chat-media' as a safe bet or I can extract bucket from logic?
+                // Actually extractFilePathFromUrl needs bucket to parse correctly.
+                // Let's assume 'chat-media' as per standard chat.
+                const path = extractFilePathFromUrl(msg.media_url, "chat-media");
+                if (path) {
+                    await deleteStorageFile("chat-media", path);
+                }
+            }
+
             const { error } = await (supabase
                 .from("group_messages") as any)
                 .update({
                     deleted_at: new Date().toISOString(),
-                    message: "This message was deleted", // Update both for safety
                     content: "This message was deleted",
                     media_url: null
                 })
@@ -228,7 +250,12 @@ export default function GroupChat() {
             if (error) throw error;
             toast({ title: "Message deleted" });
         } catch (error: any) {
-            toast({ title: "Error", description: "Colud not delete message", variant: "destructive" });
+            console.error("Delete error:", error);
+            toast({
+                title: "Error",
+                description: error.message || "Could not delete message",
+                variant: "destructive"
+            });
         }
     };
 

@@ -13,6 +13,9 @@ interface Notice {
   content: string;
   created_at: string;
   created_by?: string;
+  profiles?: {
+    username: string | null;
+  };
 }
 
 export function NoticeWall() {
@@ -22,12 +25,27 @@ export function NoticeWall() {
   const [newNotice, setNewNotice] = useState({ title: "", content: "", type: "general" as Notice["type"] });
   const { user } = useAuth();
   const { toast } = useToast();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      if (!user) return;
+      const { data } = await supabase.from('profiles').select('username').eq('id', user.id).single();
+      if (data?.username === 'ashutosh9503') setIsAdmin(true);
+    };
+    checkAdmin();
+  }, [user]);
 
   const fetchNotices = async () => {
     try {
       const { data, error } = await supabase
         .from("notices")
-        .select("*")
+        .select(`
+          *,
+          profiles:created_by (
+            username
+          )
+        `)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -185,6 +203,7 @@ export function NoticeWall() {
                   {notice.type}
                 </span>
                 <span className="text-[10px] text-muted-foreground font-mono">
+                  {notice.profiles?.username ? `@${notice.profiles.username} • ` : ""}
                   {formatDistanceToNow(new Date(notice.created_at), { addSuffix: true })}
                 </span>
               </div>
@@ -192,7 +211,7 @@ export function NoticeWall() {
               <p className="text-xs text-muted-foreground font-mono leading-relaxed">
                 {notice.content}
               </p>
-              {user && user.id === notice.created_by && (
+              {user && (user.id === notice.created_by || isAdmin) && (
                 <button
                   onClick={() => handleDeleteNotice(notice.id)}
                   className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1 text-destructive hover:bg-destructive/10 rounded transition-all"
@@ -208,6 +227,6 @@ export function NoticeWall() {
       <button className="w-full mt-4 py-2 border-2 border-dashed border-foreground font-mono text-xs hover:bg-muted transition-colors opacity-50 cursor-not-allowed">
         VIEW ALL NOTICES
       </button>
-    </div>
+    </div >
   );
 }

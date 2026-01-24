@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MessageSquare, Share2, Bookmark, MoreHorizontal, Send, X, Trash2, ChevronLeft, ChevronRight, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useReaction, useSavePost } from "@/hooks/usePosts";
@@ -73,6 +73,16 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
   const [newComment, setNewComment] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      if (!user) return;
+      const { data } = await supabase.from('profiles').select('username').eq('id', user.id).single();
+      if (data?.username === 'ashutosh9503') setIsAdmin(true);
+    };
+    checkAdmin();
+  }, [user]);
 
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
 
@@ -231,7 +241,7 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
         </Link>
         <div className="flex items-center gap-2">
           <span className="font-mono text-[10px] text-muted-foreground">{post.timestamp}</span>
-          {user && user.id === post.user_id && (
+          {user && (user.id === post.user_id || isAdmin) && (
             <DropdownMenu>
               <DropdownMenuTrigger className="p-1 hover:bg-muted transition-colors outline-none">
                 <MoreHorizontal className="w-4 h-4 text-muted-foreground" />

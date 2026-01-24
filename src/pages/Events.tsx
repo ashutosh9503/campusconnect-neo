@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Calendar, MapPin, Clock, Users, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -52,6 +53,16 @@ export default function Events() {
     location: "",
     type: "general",
   });
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      if (!user) return;
+      const { data } = await supabase.from('profiles').select('username').eq('id', user.id).single();
+      if (data?.username === 'ashutosh9503') setIsAdmin(true);
+    };
+    checkAdmin();
+  }, [user]);
 
   const handleCreateEvent = async () => {
     if (!newEvent.title.trim() || !newEvent.date) {
@@ -153,7 +164,7 @@ export default function Events() {
                   <span className="font-display text-xs text-foreground">
                     {typeLabels[event.type] || "EVENT"}
                   </span>
-                  {user && user.id === event.created_by && (
+                  {user && (user.id === event.created_by || isAdmin) && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

@@ -276,6 +276,7 @@ export function StoriesBar() {
                 className="max-h-screen w-full object-contain"
                 autoPlay
                 playsInline
+                muted
                 onEnded={handleNext}
               />
             ) : (
@@ -318,10 +319,19 @@ export function StoriesBar() {
                   onClick={async (e) => {
                     e.stopPropagation();
                     if (confirm("Delete this story?")) {
+                      const { extractFilePathFromUrl, deleteStorageFile } = await import("@/utils/storageUtils");
+
+                      // 1. Delete from storage
+                      if (currentStory.media_url) {
+                        const path = extractFilePathFromUrl(currentStory.media_url, "stories");
+                        if (path) {
+                          await deleteStorageFile("stories", path);
+                        }
+                      }
+
+                      // 2. Delete row
                       const { error } = await supabase.from('stories').delete().eq('id', currentStory.id);
                       if (error) {
-                        // toast error? We don't have toast hook here yet? 
-                        // StoriesBar didn't have useToast. Let's rely on console or add it.
                         console.error("Delete error", error);
                       } else {
                         // Remove from state

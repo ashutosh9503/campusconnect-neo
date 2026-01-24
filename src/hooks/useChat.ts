@@ -183,7 +183,57 @@ export function useConversations() {
 
   useEffect(() => {
     fetchConversations();
-  }, [fetchConversations]);
+
+    if (!user) return;
+
+    const channel = supabase.channel('conversations_list')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages'
+        },
+        async (payload) => {
+          const newMsg = payload.new as Message;
+
+          setConversations(prev => {
+            // Check if we have this conversation
+            const existingIdx = prev.findIndex(c => c.id === newMsg.conversation_id);
+
+            if (existingIdx === -1) {
+              // New conversation? Fetch it.
+              fetchConversations();
+              return prev;
+            }
+
+            const updatedConversations = [...prev];
+            const conv = { ...updatedConversations[existingIdx] };
+
+            // Update last message details
+            conv.last_message = newMsg.content || (newMsg.media_url ? "📷 Sent an image" : "Message");
+            conv.last_message_at = newMsg.created_at;
+            conv.updated_at = newMsg.created_at; // For sorting
+
+            // Increment unread if not from us
+            if (newMsg.sender_id !== user.id) {
+              conv.unread_count = (conv.unread_count || 0) + 1;
+            }
+
+            // Move to top
+            updatedConversations.splice(existingIdx, 1);
+            updatedConversations.unshift(conv);
+
+            return updatedConversations;
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchConversations, user]);
 
   return { conversations, loading, refetch: fetchConversations };
 }
@@ -469,17 +519,36 @@ export function useMessages(conversationId: string) {
   };
 
   const deleteMessage = async (messageId: string) => {
-    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, deleted: true } : m));
+    // Optimistic: Mark as deleted locally first
+    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, deleted: true, media_url: null, content: "This message was deleted" } : m));
 
     try {
+      // 1. Fetch message to check for media
+      const { data: msg } = await (supabase
+        .from("messages") as any)
+        .select("media_url")
+        .eq("id", messageId)
+        .single();
+
+      if (msg?.media_url) {
+        const { extractFilePathFromUrl, deleteStorageFile } = await import("@/utils/storageUtils");
+        const path = extractFilePathFromUrl(msg.media_url, "chat-media");
+        if (path) {
+          await deleteStorageFile("chat-media", path);
+        }
+      }
+
+      // 2. Soft Delete in DB
       const { error } = await supabase
         .from("messages")
-        .update({ deleted: true } as any)
+        .update({ deleted: true, media_url: null, content: "This message was deleted" } as any) // Clear media_url in DB too
         .eq("id", messageId);
 
       if (error) throw error;
     } catch (err) {
       console.error("Failed to delete message:", err);
+      // Revert optimistic update (optional, but tricky without knowing previous state. 
+      // Usually we just let it fail silently or show toast, but keeping UI "deleted" is fine for now)
     }
   };
 

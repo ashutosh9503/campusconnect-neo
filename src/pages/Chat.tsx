@@ -149,14 +149,27 @@ export default function Chat() {
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <p className="font-mono text-sm text-foreground truncate">{displayName}</p>
+                        <p className={cn(
+                          "font-mono text-sm truncate",
+                          (conv.unread_count || 0) > 0 ? "text-foreground font-bold" : "text-foreground"
+                        )}>{displayName}</p>
                         <span className="font-mono text-[10px] text-muted-foreground">
                           {formatTime(conv.last_message_at)}
                         </span>
                       </div>
-                      <p className="font-mono text-xs text-muted-foreground truncate">
-                        {conv.last_message || "No messages yet"}
-                      </p>
+                      <div className="flex items-center justify-between mt-1">
+                        <p className={cn(
+                          "font-mono text-xs truncate max-w-[80%]",
+                          (conv.unread_count || 0) > 0 ? "text-foreground font-semibold" : "text-muted-foreground"
+                        )}>
+                          {conv.last_message || "No messages yet"}
+                        </p>
+                        {(conv.unread_count || 0) > 0 && (
+                          <span className="flex items-center justify-center min-w-[1.25rem] h-5 px-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full">
+                            {conv.unread_count}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </Link>
                 );
