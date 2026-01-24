@@ -120,6 +120,29 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         return pc;
     };
 
+    const getMediaStream = async (isVideo: boolean) => {
+        try {
+            return await navigator.mediaDevices.getUserMedia({
+                video: isVideo,
+                audio: true
+            });
+        } catch (err) {
+            console.warn("Failed to get requested media, falling back to audio only", err);
+            if (isVideo) {
+                try {
+                    return await navigator.mediaDevices.getUserMedia({
+                        video: false,
+                        audio: true
+                    });
+                } catch (retryErr) {
+                    console.error("Failed audio fallback", retryErr);
+                    throw retryErr;
+                }
+            }
+            throw err;
+        }
+    };
+
     const startCall = async (targetUserId: string, isVideo: boolean) => {
         if (!user) return;
         performCleanup();
@@ -130,11 +153,12 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         iceCandidatesQueue.current = [];
 
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: isVideo,
-                audio: true
-            });
+            const stream = await getMediaStream(isVideo);
             setLocalStream(stream);
+
+            // Update camera state based on what we actually got
+            const hasVideo = stream.getVideoTracks().length > 0;
+            setIsCameraOn(hasVideo);
 
             const pc = createPeerConnection();
             stream.getTracks().forEach(track => pc.addTrack(track, stream));
@@ -194,15 +218,17 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         const isVideo = (window as any).pendingIsVideo;
 
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: true,
-                audio: true
-            });
+            const stream = await getMediaStream(true);
             setLocalStream(stream);
 
+            // If caller asked for video but we failed to get it (fallback), accept as audio
             if (!isVideo) {
                 stream.getVideoTracks().forEach(t => t.enabled = false);
                 setIsCameraOn(false);
+            } else {
+                // Check if we actually got video
+                const hasVideo = stream.getVideoTracks().length > 0;
+                setIsCameraOn(hasVideo);
             }
 
             const pc = createPeerConnection();
@@ -257,16 +283,15 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
     const handleReceiveIceCandidate = async (payload: any) => {
         const { candidate } = payload.payload;
-        if (peerConnectionRef.current) {
-            if (peerConnectionRef.current.remoteDescription) {
-                try {
-                    await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
-                } catch (e) {
-                    console.error("Error adding ice candidate", e);
-                }
-            } else {
-                iceCandidatesQueue.current.push(new RTCIceCandidate(candidate));
+        if (peerConnectionRef.current && peerConnectionRef.current.remoteDescription) {
+            try {
+                await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+            } catch (e) {
+                console.error("Error adding ice candidate", e);
             }
+        } else {
+            // Queue candidate if PC doesn't exist yet (ringing) or remote description isn't set
+            iceCandidatesQueue.current.push(new RTCIceCandidate(candidate));
         }
     };
 
