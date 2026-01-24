@@ -276,7 +276,6 @@ export function StoriesBar() {
                 className="max-h-screen w-full object-contain"
                 autoPlay
                 playsInline
-                muted
                 onEnded={handleNext}
               />
             ) : (

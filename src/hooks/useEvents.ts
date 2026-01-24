@@ -30,7 +30,6 @@ export function useEvents() {
       const { data: eventsData, error } = await (supabase
         .from("events" as any) as any)
         .select("*")
-        .gte("event_date", new Date().toISOString().split("T")[0])
         .order("event_date", { ascending: true });
 
       if (error) throw error;
@@ -162,8 +161,7 @@ export function useEvents() {
       const { error } = await (supabase
         .from("events" as any) as any)
         .delete()
-        .eq("id", eventId)
-        .eq("created_by", user.id);
+        .eq("id", eventId);
 
       if (error) throw error;
       await fetchEvents();
