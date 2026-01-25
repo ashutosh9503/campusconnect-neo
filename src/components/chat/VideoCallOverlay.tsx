@@ -22,7 +22,9 @@ export function VideoCallOverlay() {
         if (localVideoRef.current && localStream) {
             localVideoRef.current.srcObject = localStream;
             // iOS requires explicit play() call
-            localVideoRef.current.play().catch(console.error);
+            localVideoRef.current.play().catch(error => {
+                if (error.name !== 'AbortError') console.error(error);
+            });
         }
     }, [localStream, isInCall]);
 
@@ -30,7 +32,9 @@ export function VideoCallOverlay() {
         if (remoteVideoRef.current && remoteStream) {
             remoteVideoRef.current.srcObject = remoteStream;
             // iOS requires explicit play() call
-            remoteVideoRef.current.play().catch(console.error);
+            remoteVideoRef.current.play().catch(error => {
+                if (error.name !== 'AbortError') console.error(error);
+            });
         }
     }, [remoteStream, isInCall]);
 

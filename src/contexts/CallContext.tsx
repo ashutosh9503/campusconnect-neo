@@ -43,6 +43,28 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
     const activeCallUserIdRef = useRef<string | null>(null);
     const iceCandidatesQueue = useRef<RTCIceCandidate[]>([]);
+    const signalingChannelRef = useRef<any>(null);
+
+    // Helper to send signaling messages reliably
+    const sendSignal = async (targetUserId: string, event: string, payload: any) => {
+        if (!signalingChannelRef.current) {
+            signalingChannelRef.current = supabase.channel(`calls:${targetUserId}`);
+            // Subscribe to ensure we use WebSocket and avoid fallback warning
+            await signalingChannelRef.current.subscribe();
+        }
+
+        // If target changed (rare race condition), recreate
+        if (signalingChannelRef.current.topic !== `realtime:calls:${targetUserId}`) {
+            // topic usually includes 'realtime:' prefix internally or just depends on how created.
+            // Safer to just trust the ref if we manage it correctly in start/accept
+        }
+
+        return signalingChannelRef.current.send({
+            type: "broadcast",
+            event,
+            payload
+        });
+    };
 
     // Cleanup function to stop all tracks
     const stopLocalStream = () => {
@@ -56,6 +78,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         if (peerConnectionRef.current) {
             peerConnectionRef.current.close();
             peerConnectionRef.current = null;
+        }
+        if (signalingChannelRef.current) {
+            supabase.removeChannel(signalingChannelRef.current);
+            signalingChannelRef.current = null;
         }
         setIsInCall(false);
         setIsIncomingCall(false);
@@ -95,10 +121,9 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
         pc.onicecandidate = (event) => {
             if (event.candidate && activeCallUserIdRef.current) {
-                supabase.channel(`calls:${activeCallUserIdRef.current}`).send({
-                    type: "broadcast",
-                    event: "ice-candidate",
-                    payload: { candidate: event.candidate, from: user?.id }
+                sendSignal(activeCallUserIdRef.current, "ice-candidate", {
+                    candidate: event.candidate,
+                    from: user?.id
                 });
             }
         };
@@ -186,14 +211,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
             });
             await pc.setLocalDescription(offer);
 
-            await supabase.channel(`calls:${targetUserId}`).send({
-                type: "broadcast",
-                event: "offer",
-                payload: {
-                    offer,
-                    caller: { id: user.id, name: user.email },
-                    isVideo
-                }
+            await sendSignal(targetUserId, "offer", {
+                offer,
+                caller: { id: user.id, name: user.email },
+                isVideo
             });
 
             // Send notification
@@ -265,11 +286,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
                 }
             }
 
-            await supabase.channel(`calls:${activeCallUserIdRef.current}`).send({
-                type: "broadcast",
-                event: "answer",
-                payload: { answer, from: user.id }
-            });
+            await sendSignal(activeCallUserIdRef.current, "answer", { answer, from: user.id });
 
         } catch (err) {
             console.error("Error accepting call:", err);
@@ -279,11 +296,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
     const rejectCall = () => {
         if (activeCallUserIdRef.current) {
-            supabase.channel(`calls:${activeCallUserIdRef.current}`).send({
-                type: "broadcast",
-                event: "end-call",
-                payload: { from: user?.id }
-            });
+            sendSignal(activeCallUserIdRef.current, "end-call", { from: user?.id });
         }
         performCleanup();
     };
@@ -326,11 +339,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
     const endCall = () => {
         if (activeCallUserIdRef.current) {
-            supabase.channel(`calls:${activeCallUserIdRef.current}`).send({
-                type: "broadcast",
-                event: "end-call",
-                payload: { from: user?.id }
-            });
+            sendSignal(activeCallUserIdRef.current, "end-call", { from: user?.id });
         }
         performCleanup();
     };

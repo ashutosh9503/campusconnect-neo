@@ -198,11 +198,12 @@ export function GroupSettingsModal({ groupId, isOpen, onClose, onGroupDeleted }:
         const currentUserMember = members.find(m => m.user_id === user?.id);
         const username = currentUserMember?.profile?.username?.toLowerCase();
 
-        if (username !== "ashutosh9503") {
-            console.log("Deletion denied. Current user:", currentUserMember?.profile);
+        const isSuperUser = username === "ashutosh9503";
+        // Allow deletion if user is admin OR is the superuser
+        if (!isAdmin && !isSuperUser) {
             toast({
                 title: "Permission Denied",
-                description: "Only the super admin (@ashutosh9503) can delete groups.",
+                description: "Only group admins can delete goups.",
                 variant: "destructive"
             });
             return;
@@ -227,6 +228,8 @@ export function GroupSettingsModal({ groupId, isOpen, onClose, onGroupDeleted }:
 
     const canManage = currentUserRole === "admin" || currentUserRole === "moderator";
     const isAdmin = currentUserRole === "admin";
+    const currentUserMember = members.find(m => m.user_id === user?.id);
+    const isSuperUser = currentUserMember?.profile?.username?.toLowerCase() === "ashutosh9503";
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -359,7 +362,7 @@ export function GroupSettingsModal({ groupId, isOpen, onClose, onGroupDeleted }:
                                 LEAVE GROUP
                             </Button>
 
-                            {isAdmin && members.find(m => m.user_id === user?.id)?.profile.username?.toLowerCase() === "ashutosh9503" && (
+                            {(isAdmin || isSuperUser) && (
                                 <Button
                                     variant="destructive"
                                     className="w-full border-2 border-foreground font-mono hover:scale-[1.02] transition-transform justify-start gap-2"
