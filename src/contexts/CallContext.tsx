@@ -126,10 +126,18 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
                 video: isVideo,
                 audio: true
             });
-        } catch (err) {
-            console.warn("Failed to get requested media, falling back to audio only", err);
+        } catch (err: any) {
+            console.warn("Failed to get requested media", err);
+
+            // If permission is strictly denied, don't try fallback as it will likely fail too
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                toast.error("Permission denied. Please allow camera/microphone access in your browser settings.");
+                throw err;
+            }
+
             if (isVideo) {
                 try {
+                    console.log("Attempting audio-only fallback...");
                     return await navigator.mediaDevices.getUserMedia({
                         video: false,
                         audio: true
@@ -145,6 +153,12 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
     const startCall = async (targetUserId: string, isVideo: boolean) => {
         if (!user) return;
+
+        if (!window.isSecureContext && window.location.hostname !== 'localhost') {
+            toast.error("Calls require a secure connection (HTTPS) or localhost.");
+            return;
+        }
+
         performCleanup();
 
         setIsInCall(true);
@@ -161,7 +175,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
             setIsCameraOn(hasVideo);
 
             const pc = createPeerConnection();
-            stream.getTracks().forEach(track => pc.addTrack(track, stream));
+            stream.getTracks().forEach(track => {
+                track.enabled = true; // Explicitly enable track
+                pc.addTrack(track, stream);
+            });
 
             const offer = await pc.createOffer({
                 offerToReceiveAudio: true,
@@ -232,7 +249,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
             }
 
             const pc = createPeerConnection();
-            stream.getTracks().forEach(track => pc.addTrack(track, stream));
+            stream.getTracks().forEach(track => {
+                track.enabled = true; // Explicitly enable track
+                pc.addTrack(track, stream);
+            });
 
             await pc.setRemoteDescription(new RTCSessionDescription(offer));
             const answer = await pc.createAnswer();
@@ -285,7 +305,11 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         const { candidate } = payload.payload;
         if (peerConnectionRef.current && peerConnectionRef.current.remoteDescription) {
             try {
-                await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+                if (peerConnectionRef.current.remoteDescription) {
+                    await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+                } else {
+                    iceCandidatesQueue.current.push(new RTCIceCandidate(candidate));
+                }
             } catch (e) {
                 console.error("Error adding ice candidate", e);
             }

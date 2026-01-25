@@ -21,12 +21,16 @@ export function VideoCallOverlay() {
     useEffect(() => {
         if (localVideoRef.current && localStream) {
             localVideoRef.current.srcObject = localStream;
+            // iOS requires explicit play() call
+            localVideoRef.current.play().catch(console.error);
         }
     }, [localStream, isInCall]);
 
     useEffect(() => {
         if (remoteVideoRef.current && remoteStream) {
             remoteVideoRef.current.srcObject = remoteStream;
+            // iOS requires explicit play() call
+            remoteVideoRef.current.play().catch(console.error);
         }
     }, [remoteStream, isInCall]);
 
@@ -46,7 +50,9 @@ export function VideoCallOverlay() {
                 ) : (
                     <div className="w-full h-full flex items-center justify-center bg-zinc-900">
                         <span className="font-mono text-muted-foreground animate-pulse">
-                            Connecting...
+                            {remoteStream && remoteStream.getVideoTracks().length === 0
+                                ? "Audio Only"
+                                : "Connecting..."}
                         </span>
                     </div>
                 )}
