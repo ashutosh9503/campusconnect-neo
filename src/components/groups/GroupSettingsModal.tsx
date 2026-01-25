@@ -196,7 +196,10 @@ export function GroupSettingsModal({ groupId, isOpen, onClose, onGroupDeleted }:
 
     const deleteGroup = async () => {
         const currentUserMember = members.find(m => m.user_id === user?.id);
-        if (currentUserMember?.profile.username !== "ashutosh9503") {
+        const username = currentUserMember?.profile?.username?.toLowerCase();
+
+        if (username !== "ashutosh9503") {
+            console.log("Deletion denied. Current user:", currentUserMember?.profile);
             toast({
                 title: "Permission Denied",
                 description: "Only the super admin (@ashutosh9503) can delete groups.",
@@ -356,7 +359,7 @@ export function GroupSettingsModal({ groupId, isOpen, onClose, onGroupDeleted }:
                                 LEAVE GROUP
                             </Button>
 
-                            {isAdmin && members.find(m => m.user_id === user?.id)?.profile.username === "ashutosh9503" && (
+                            {isAdmin && members.find(m => m.user_id === user?.id)?.profile.username?.toLowerCase() === "ashutosh9503" && (
                                 <Button
                                     variant="destructive"
                                     className="w-full border-2 border-foreground font-mono hover:scale-[1.02] transition-transform justify-start gap-2"
