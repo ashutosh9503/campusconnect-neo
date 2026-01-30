@@ -93,7 +93,7 @@ export function Sidebar() {
       {user && (
         <div className="p-4 border-t-2 border-foreground">
           <Link
-            to="/create"
+            to="/create-post"
             className="flex items-center justify-center gap-2 w-full py-3 bg-secondary text-secondary-foreground border-2 border-foreground font-mono text-sm hover-brutal"
           >
             <Plus className="w-5 h-5" />
