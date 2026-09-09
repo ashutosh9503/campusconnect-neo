@@ -12,7 +12,12 @@ import {
   HelpCircle,
   Save,
   Camera,
-  Download
+  Download,
+  Sparkles,
+  Sliders,
+  Compass,
+  Bot,
+  RotateCcw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,6 +26,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { useUserPreferences, PresetType } from "@/contexts/UserPreferenceContext";
+import { NavCustomizerModal } from "@/components/customizer/NavCustomizerModal";
+import { NeoAIModal } from "@/components/customizer/NeoAIModal";
 
 type StreamType = Database["public"]["Enums"]["stream_type"];
 type YearType = Database["public"]["Enums"]["year_type"];
@@ -76,6 +84,10 @@ export default function Settings() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { canInstall, isInstalled, install } = usePwaInstall();
+  const { preferences, applyPreset, updatePreferences, resetPreferences } = useUserPreferences();
+
+  const [showNavCustomizer, setShowNavCustomizer] = useState(false);
+  const [showNeoAI, setShowNeoAI] = useState(false);
 
   const [editMode, setEditMode] = useState(false);
   const [fullName, setFullName] = useState(profile?.full_name || "");
@@ -435,6 +447,66 @@ export default function Settings() {
           </div>
         </div>
 
+        {/* CCNEO CUSTOMIZE & 3D CONTROL PANEL */}
+        <div className="p-4 border-b-2 border-foreground bg-card space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-xs text-primary flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-primary" />
+              CCNEO CUSTOMIZE & 3D PRESETS
+            </h2>
+            <button
+              onClick={() => navigate("/neo-space")}
+              className="px-3 py-1 bg-primary text-primary-foreground font-mono text-[10px] font-bold border border-foreground hover:scale-105 transition-transform flex items-center gap-1"
+            >
+              <Compass className="w-3 h-3" />
+              ENTER NEO SPACE
+            </button>
+          </div>
+
+          {/* Quick Preset Buttons */}
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+            {(["Minimal", "Classic", "3D", "Cinematic", "Productivity", "Creator"] as PresetType[]).map((preset) => (
+              <button
+                key={preset}
+                onClick={() => applyPreset(preset)}
+                className={cn(
+                  "p-2 font-mono text-[10px] border-2 border-foreground transition-all text-center font-bold",
+                  preferences.preset === preset
+                    ? "bg-primary text-primary-foreground shadow-brutal"
+                    : "bg-background text-muted-foreground hover:text-foreground hover:bg-muted"
+                )}
+              >
+                {preset}
+              </button>
+            ))}
+          </div>
+
+          {/* Customizer Triggers */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+            <button
+              onClick={() => setShowNavCustomizer(true)}
+              className="p-3 bg-background border-2 border-foreground font-mono text-xs flex items-center justify-between hover:bg-muted transition-colors font-bold text-foreground"
+            >
+              <div className="flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-primary" />
+                <span>Reorder / Customize Menus</span>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </button>
+
+            <button
+              onClick={() => setShowNeoAI(true)}
+              className="p-3 bg-secondary/10 border-2 border-secondary font-mono text-xs flex items-center justify-between hover:bg-secondary/20 transition-colors font-bold text-secondary"
+            >
+              <div className="flex items-center gap-2">
+                <Bot className="w-4 h-4 text-secondary" />
+                <span>NEO AI Assistant</span>
+              </div>
+              <ChevronRight className="w-4 h-4 text-secondary" />
+            </button>
+          </div>
+        </div>
+
         {/* Settings Groups */}
         <div className="p-4 space-y-6">
           {settingsGroups.map((group) => (
@@ -479,16 +551,16 @@ export default function Settings() {
           ))}
         </div>
 
-        {/* Footer */}
-        <div className="p-4 text-center border-t-2 border-foreground mt-8">
-          <p className="font-mono text-xs text-muted-foreground">
-            CampusConnect v1.0.0
-          </p>
-          <p className="font-mono text-[10px] text-muted-foreground mt-1">
-            TSDC Edition •
-          </p>
-        </div>
+        {/* Modals */}
+        <NavCustomizerModal
+          isOpen={showNavCustomizer}
+          onClose={() => setShowNavCustomizer(false)}
+        />
+        <NeoAIModal
+          isOpen={showNeoAI}
+          onClose={() => setShowNeoAI(false)}
+        />
       </div>
-    </MainLayout >
+    </MainLayout>
   );
 }

@@ -12,25 +12,28 @@ import {
   Plus,
   LogOut,
   LogIn,
-  Search
+  Search,
+  Compass
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useUserPreferences } from "@/contexts/UserPreferenceContext";
 
-const navItems = [
-  { icon: Home, label: "Feed", path: "/" },
-  { icon: Search, label: "Search", path: "/search" },
-  { icon: MessageSquare, label: "Messages", path: "/chat" },
-  { icon: Bell, label: "Notifications", path: "/notifications" },
-  { icon: Users, label: "Groups", path: "/groups" },
-  { icon: Calendar, label: "Events", path: "/events" },
-  { icon: Bookmark, label: "Saved", path: "/saved" },
-  { icon: TrendingUp, label: "Trending", path: "/trending" },
-  { icon: Settings, label: "Settings", path: "/settings" },
-  { icon: User, label: "Profile", path: "/profile" },
-];
+const ALL_NAV_ITEMS: Record<string, { icon: any; label: string }> = {
+  "/": { icon: Home, label: "Feed" },
+  "/chat": { icon: MessageSquare, label: "Messages" },
+  "/neo-space": { icon: Compass, label: "NEO Space 3D" },
+  "/search": { icon: Search, label: "Search" },
+  "/notifications": { icon: Bell, label: "Notifications" },
+  "/groups": { icon: Users, label: "Groups" },
+  "/events": { icon: Calendar, label: "Events" },
+  "/saved": { icon: Bookmark, label: "Saved" },
+  "/trending": { icon: TrendingUp, label: "Trending" },
+  "/settings": { icon: Settings, label: "Settings" },
+  "/profile": { icon: User, label: "Profile" },
+};
 
 export function Sidebar() {
   const location = useLocation();
@@ -38,6 +41,15 @@ export function Sidebar() {
   const { user, signOut, loading } = useAuth();
   const { profile } = useProfile();
   const { unreadCount } = useNotifications();
+  const { preferences } = useUserPreferences();
+
+  // Filter and order nav items according to user preferences
+  const activeNavItems = preferences.navigationOrder
+    .filter((path) => !preferences.hiddenMenus.includes(path) && ALL_NAV_ITEMS[path])
+    .map((path) => ({
+      path,
+      ...ALL_NAV_ITEMS[path],
+    }));
 
   const handleSignOut = async () => {
     await signOut();
@@ -64,7 +76,7 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {navItems.map((item) => {
+        {activeNavItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
             <Link

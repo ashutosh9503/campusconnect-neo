@@ -293,7 +293,7 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
       {/* Media Carousel */}
       {mediaItems.length > 0 && (
         <div className="mb-3 border-2 border-foreground overflow-hidden bg-black relative group/media">
-          <div className="w-full h-[400px] bg-black flex items-center justify-center">
+          <div className="w-full h-[300px] sm:h-[400px] bg-black flex items-center justify-center">
             {mediaItems[currentMediaIndex].type === "image" ? (
               <img
                 src={mediaItems[currentMediaIndex].url}

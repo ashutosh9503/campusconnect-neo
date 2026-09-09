@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
 import { MobileNav } from "./MobileNav";
+import { MobileHeader } from "./MobileHeader";
 import { MobileCreateButton } from "@/components/layout/MobileCreateButton";
 import { NoticeWall } from "@/components/feed/NoticeWall";
 import { TrendingPanel } from "@/components/feed/TrendingPanel";
@@ -17,6 +18,9 @@ export function MainLayout({ children, showSidebars = true }: MainLayoutProps) {
       {/* Dynamic 3D Ambient WebGL/Canvas Layer */}
       <Background3D />
 
+      {/* Sticky Mobile Header */}
+      <MobileHeader />
+
       {/* Desktop Sidebar */}
       <div className="hidden md:block relative z-30">
         <Sidebar />
@@ -28,7 +32,7 @@ export function MainLayout({ children, showSidebars = true }: MainLayoutProps) {
       <main
         className={`
         ${showSidebars ? "md:ml-64 md:mr-80" : "md:ml-64"}
-        min-h-screen pb-20 md:pb-0 relative z-10 transform-style-3d
+        min-h-screen pb-24 md:pb-0 relative z-10 transform-style-3d
       `}
       >
         {children}
