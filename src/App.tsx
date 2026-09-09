@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CallProvider } from "@/contexts/CallContext";
 import { UserPreferenceProvider } from "@/contexts/UserPreferenceContext";
+import { ShakePhysicsProvider } from "@/contexts/ShakePhysicsContext";
 import { IncomingCallDialog } from "@/components/chat/IncomingCallDialog";
 import { VideoCallOverlay } from "@/components/chat/VideoCallOverlay";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -36,41 +37,43 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <UserPreferenceProvider>
-        <CallProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <IncomingCallDialog />
-            <VideoCallOverlay />
-            <BrowserRouter>
-              <Routes>
-                {/* Public Routes */}
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<Signup />} />
+        <ShakePhysicsProvider>
+          <CallProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <IncomingCallDialog />
+              <VideoCallOverlay />
+              <BrowserRouter>
+                <Routes>
+                  {/* Public Routes */}
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/signup" element={<Signup />} />
 
-                {/* Protected Routes */}
-                <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-                <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
-                <Route path="/chat/:id" element={<ProtectedRoute><ChatConversation /></ProtectedRoute>} />
-                <Route path="/create-post" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
-                <Route path="/create-story" element={<ProtectedRoute><CreateStory /></ProtectedRoute>} />
-                <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-                <Route path="/notices" element={<ProtectedRoute><NoticesPage /></ProtectedRoute>} />
-                <Route path="/groups" element={<ProtectedRoute><Groups /></ProtectedRoute>} />
-                <Route path="/groups/:groupId/chat" element={<ProtectedRoute><GroupChat /></ProtectedRoute>} />
-                <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
-                <Route path="/saved" element={<ProtectedRoute><Saved /></ProtectedRoute>} />
-                <Route path="/trending" element={<ProtectedRoute><Trending /></ProtectedRoute>} />
-                <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-                <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-                <Route path="/search" element={<ProtectedRoute><Search /></ProtectedRoute>} />
-                <Route path="/neo-space" element={<ProtectedRoute><NeoSpace /></ProtectedRoute>} />
-                <Route path="/profile/:username" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          </TooltipProvider>
-        </CallProvider>
+                  {/* Protected Routes */}
+                  <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+                  <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
+                  <Route path="/chat/:id" element={<ProtectedRoute><ChatConversation /></ProtectedRoute>} />
+                  <Route path="/create-post" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
+                  <Route path="/create-story" element={<ProtectedRoute><CreateStory /></ProtectedRoute>} />
+                  <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+                  <Route path="/notices" element={<ProtectedRoute><NoticesPage /></ProtectedRoute>} />
+                  <Route path="/groups" element={<ProtectedRoute><Groups /></ProtectedRoute>} />
+                  <Route path="/groups/:groupId/chat" element={<ProtectedRoute><GroupChat /></ProtectedRoute>} />
+                  <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
+                  <Route path="/saved" element={<ProtectedRoute><Saved /></ProtectedRoute>} />
+                  <Route path="/trending" element={<ProtectedRoute><Trending /></ProtectedRoute>} />
+                  <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+                  <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+                  <Route path="/search" element={<ProtectedRoute><Search /></ProtectedRoute>} />
+                  <Route path="/neo-space" element={<ProtectedRoute><NeoSpace /></ProtectedRoute>} />
+                  <Route path="/profile/:username" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </BrowserRouter>
+            </TooltipProvider>
+          </CallProvider>
+        </ShakePhysicsProvider>
       </UserPreferenceProvider>
     </AuthProvider>
   </QueryClientProvider>

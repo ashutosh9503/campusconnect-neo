@@ -347,5 +347,51 @@
     -ms-overflow-style: none !important;
     scrollbar-width: none !important;
   }
+
+  /* Global Shake Physics GPU Accelerated System */
+  .physics-node {
+    will-change: transform;
+    transition: transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  .shake-active .physics-boba {
+    transform: translate3d(
+      calc(var(--shake-x, 0px) * var(--physics-factor, 1) * var(--seed-x, 1) * 1.5),
+      calc(var(--shake-y, 0px) * var(--physics-factor, 1) * var(--seed-y, 1) * 1.5),
+      calc(var(--shake-intensity, 0) * 35px)
+    )
+    rotateX(calc(var(--shake-r, 0deg) * var(--seed-rx, 1.5) * 1.2))
+    rotateY(calc(var(--shake-r, 0deg) * var(--seed-ry, 2) * 1.2))
+    rotateZ(calc(var(--shake-r, 0deg) * var(--seed-rz, 0.8) * 1.5))
+    scale(calc(1 + var(--shake-intensity, 0) * 0.04 * var(--seed-r, 1)));
+  }
+
+  .shake-active .physics-spin {
+    transform: rotate(calc(var(--shake-r, 0deg) * 6 * var(--seed-r, 1))) scale(calc(1 + var(--shake-intensity, 0) * 0.18));
+  }
+
+  .shake-active .physics-bounce {
+    transform: translate3d(
+      calc(var(--shake-x, 0px) * 0.5 * var(--seed-x, 1)),
+      calc(var(--shake-y, 0px) * -1.2 * var(--seed-y, 1)),
+      0
+    ) scale(calc(1 + var(--shake-intensity, 0) * 0.12));
+  }
+
+  .shake-active .physics-float {
+    transform: translate3d(
+      calc(var(--shake-x, 0px) * -1.2 * var(--seed-x, 1)),
+      calc(var(--shake-y, 0px) * 1.4 * var(--seed-y, 1)),
+      0
+    ) rotate(calc(var(--shake-r, 0deg) * 0.6));
+  }
+
+  .shake-active .physics-flip {
+    transform: rotateY(calc(var(--shake-r, 0deg) * 3.5 * var(--seed-ry, 1))) translate3d(0, calc(var(--shake-y, 0px) * 0.7), 0);
+  }
+
+  .shake-active .physics-wobble {
+    transform: rotate(calc(var(--shake-r, 0deg) * 3 * var(--seed-r, 1))) translate3d(calc(var(--shake-x, 0px) * 0.8), 0, 0);
+  }
 }
 

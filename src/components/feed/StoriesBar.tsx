@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
+import { ShakePhysicsNode } from "@/components/physics/ShakePhysicsNode";
 
 interface Story {
   id: string;
@@ -207,30 +208,31 @@ export function StoriesBar() {
 
           {/* Stories from DB */}
           {uniqueUserStories.map((story) => (
-            <button
-              key={story.id}
-              onClick={() => handleOpenStory(story)}
-              className="flex-shrink-0 flex flex-col items-center gap-2 group transition-transform duration-200 hover:-translate-y-1"
-            >
-              <div className="story-ring-animated shadow-brutal group-hover:shadow-brutal-3d-purple transition-shadow">
-                <div className="w-16 h-16 bg-card border-2 border-foreground flex items-center justify-center group-hover:bg-muted transition-colors overflow-hidden">
-                  {story.profile?.avatar_url ? (
-                    <img
-                      src={story.profile.avatar_url}
-                      alt={story.profile.username || "User"}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                    />
-                  ) : (
-                    <span className="font-display text-lg text-foreground group-hover:scale-110 transition-transform duration-300">
-                      {(story.profile?.username || story.profile?.full_name || "U").slice(0, 2).toUpperCase()}
-                    </span>
-                  )}
+            <ShakePhysicsNode key={story.id} type="flip">
+              <button
+                onClick={() => handleOpenStory(story)}
+                className="flex-shrink-0 flex flex-col items-center gap-2 group transition-transform duration-200 hover:-translate-y-1"
+              >
+                <div className="story-ring-animated shadow-brutal group-hover:shadow-brutal-3d-purple transition-shadow">
+                  <div className="w-16 h-16 bg-card border-2 border-foreground flex items-center justify-center group-hover:bg-muted transition-colors overflow-hidden">
+                    {story.profile?.avatar_url ? (
+                      <img
+                        src={story.profile.avatar_url}
+                        alt={story.profile.username || "User"}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      />
+                    ) : (
+                      <span className="font-display text-lg text-foreground group-hover:scale-110 transition-transform duration-300">
+                        {(story.profile?.username || story.profile?.full_name || "U").slice(0, 2).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <span className="font-mono text-[10px] text-muted-foreground truncate max-w-16 group-hover:text-foreground transition-colors">
-                {story.profile?.username || "user"}
-              </span>
-            </button>
+                <span className="font-mono text-[10px] text-muted-foreground truncate max-w-16 group-hover:text-foreground transition-colors">
+                  {story.profile?.username || "user"}
+                </span>
+              </button>
+            </ShakePhysicsNode>
           ))}
 
           {/* Empty state */}

@@ -11,6 +11,7 @@ export interface UserPreferences {
   navigationOrder: string[];
   hiddenMenus: string[];
   pinnedMenus: string[];
+  shakePhysicsEnabled: boolean;
   post3D: {
     mode: Post3DMode;
     maxTilt: number;
@@ -32,6 +33,7 @@ export interface UserPreferences {
 
 const DEFAULT_PREFERENCES: UserPreferences = {
   preset: "3D",
+  shakePhysicsEnabled: true,
   navigationOrder: [
     "/",
     "/chat",

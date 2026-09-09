@@ -16,6 +16,7 @@ import {
   Compass
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ShakePhysicsNode } from "@/components/physics/ShakePhysicsNode";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -79,24 +80,25 @@ export function Sidebar() {
         {activeNavItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={cn(
-                "flex items-center gap-3 px-4 py-3 font-mono text-sm transition-all border-2 relative duration-200",
-                isActive
-                  ? "bg-primary text-primary-foreground border-foreground shadow-brutal-3d-lime translate-x-1 -translate-y-0.5 font-bold"
-                  : "bg-transparent text-foreground border-transparent hover:border-foreground hover:bg-muted/80 hover:translate-x-1 hover:shadow-brutal"
-              )}
-            >
-              <item.icon className={cn("w-5 h-5 transition-transform duration-200", isActive && "scale-110")} />
-              <span>{item.label}</span>
-              {item.label === "Notifications" && unreadCount > 0 && (
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] text-destructive-foreground font-bold shadow-brutal">
-                  {unreadCount > 99 ? "99+" : unreadCount}
-                </span>
-              )}
-            </Link>
+            <ShakePhysicsNode key={item.path} type="bounce">
+              <Link
+                to={item.path}
+                className={cn(
+                  "flex items-center gap-3 px-4 py-3 font-mono text-sm transition-all border-2 relative duration-200",
+                  isActive
+                    ? "bg-primary text-primary-foreground border-foreground shadow-brutal-3d-lime translate-x-1 -translate-y-0.5 font-bold"
+                    : "bg-transparent text-foreground border-transparent hover:border-foreground hover:bg-muted/80 hover:translate-x-1 hover:shadow-brutal"
+                )}
+              >
+                <item.icon className={cn("w-5 h-5 transition-transform duration-200", isActive && "scale-110")} />
+                <span>{item.label}</span>
+                {item.label === "Notifications" && unreadCount > 0 && (
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-[10px] text-destructive-foreground font-bold shadow-brutal">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
+              </Link>
+            </ShakePhysicsNode>
           );
         })}
       </nav>
@@ -104,13 +106,15 @@ export function Sidebar() {
       {/* Create Post Button */}
       {user && (
         <div className="p-4 border-t-2 border-foreground">
-          <Link
-            to="/create-post"
-            className="flex items-center justify-center gap-2 w-full py-3 bg-secondary text-secondary-foreground border-2 border-foreground font-mono text-sm shadow-brutal-purple hover:-translate-y-1 hover:shadow-brutal-3d-purple transition-all duration-200"
-          >
-            <Plus className="w-5 h-5 animate-pulse" />
-            <span className="font-bold">CREATE POST</span>
-          </Link>
+          <ShakePhysicsNode type="bounce">
+            <Link
+              to="/create-post"
+              className="flex items-center justify-center gap-2 w-full py-3 bg-secondary text-secondary-foreground border-2 border-foreground font-mono text-sm shadow-brutal-purple hover:-translate-y-1 hover:shadow-brutal-3d-purple transition-all duration-200"
+            >
+              <Plus className="w-5 h-5 animate-pulse" />
+              <span className="font-bold">CREATE POST</span>
+            </Link>
+          </ShakePhysicsNode>
         </div>
       )}
 

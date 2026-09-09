@@ -30,6 +30,7 @@ import {
 import type { Database } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { SharePostModal } from "@/components/feed/SharePostModal";
+import { ShakePhysicsNode } from "@/components/physics/ShakePhysicsNode";
 
 type ReactionType = Database["public"]["Enums"]["reaction_type"];
 
@@ -309,16 +310,17 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
 
   return (
     <>
-      <div
-        className={cn(
-          "perspective-1500 w-full select-none h-full",
-          post.isSpan === "row" && "md:col-span-2",
-          post.isSpan === "col" && "md:row-span-2",
-          post.isSpan === "both" && "md:col-span-2 md:row-span-2"
-        )}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseLeave}
-      >
+      <ShakePhysicsNode type="boba" className="h-full">
+        <div
+          className={cn(
+            "perspective-1500 w-full select-none h-full",
+            post.isSpan === "row" && "md:col-span-2",
+            post.isSpan === "col" && "md:row-span-2",
+            post.isSpan === "both" && "md:col-span-2 md:row-span-2"
+          )}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseLeave}
+        >
         <div
           ref={cardRef}
           onMouseDown={handleMouseDown}
@@ -717,7 +719,7 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
             </div>
           </div>
         </div>
-      </div>
+      </ShakePhysicsNode>
 
       <SharePostModal
         post={post}

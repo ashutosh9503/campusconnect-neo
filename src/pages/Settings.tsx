@@ -17,7 +17,8 @@ import {
   Sliders,
   Compass,
   Bot,
-  RotateCcw
+  RotateCcw,
+  Zap
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -479,6 +480,28 @@ export default function Settings() {
                 {preset}
               </button>
             ))}
+          </div>
+
+          {/* Shake Physics Mode Toggle Switch */}
+          <div className="flex items-center justify-between p-3 bg-background border-2 border-foreground font-mono text-xs">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-primary" />
+              <div>
+                <p className="font-bold text-foreground">SHAKE PHYSICS MODE</p>
+                <p className="text-[10px] text-muted-foreground">Physical device shake or Shift+S boba pearl physics</p>
+              </div>
+            </div>
+            <button
+              onClick={() => updatePreferences({ shakePhysicsEnabled: preferences.shakePhysicsEnabled === false })}
+              className={cn(
+                "px-3 py-1 font-mono text-xs font-bold border-2 border-foreground transition-all",
+                preferences.shakePhysicsEnabled !== false
+                  ? "bg-primary text-primary-foreground shadow-brutal"
+                  : "bg-muted text-muted-foreground"
+              )}
+            >
+              {preferences.shakePhysicsEnabled !== false ? "ON 🫨" : "OFF"}
+            </button>
           </div>
 
           {/* Customizer Triggers */}
