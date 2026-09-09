@@ -6,7 +6,6 @@ import { MobileCreateButton } from "@/components/layout/MobileCreateButton";
 import { NoticeWall } from "@/components/feed/NoticeWall";
 import { TrendingPanel } from "@/components/feed/TrendingPanel";
 import { Background3D } from "@/components/3d/Background3D";
-import { ShakePhysicsControl } from "@/components/physics/ShakePhysicsControl";
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -29,9 +28,6 @@ export function MainLayout({ children, showSidebars = true }: MainLayoutProps) {
 
       {/* Mobile Sliding Bottom Navigation Bar */}
       <MobileNav />
-
-      {/* Desktop & Mobile Shake Test Trigger */}
-      <ShakePhysicsControl />
 
       {/* Main Content Area */}
       <main

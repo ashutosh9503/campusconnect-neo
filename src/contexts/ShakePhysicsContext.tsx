@@ -129,6 +129,23 @@ export function ShakePhysicsProvider({ children }: { children: ReactNode }) {
     return true;
   };
 
+  // Auto-request permission on first user tap/touch anywhere on the page
+  useEffect(() => {
+    if (!isEnabled || typeof window === "undefined") return;
+
+    const handleFirstGesture = () => {
+      requestMotionPermission();
+    };
+
+    window.addEventListener("touchstart", handleFirstGesture, { once: true, passive: true });
+    window.addEventListener("click", handleFirstGesture, { once: true, passive: true });
+
+    return () => {
+      window.removeEventListener("touchstart", handleFirstGesture);
+      window.removeEventListener("click", handleFirstGesture);
+    };
+  }, [isEnabled]);
+
   // Device Motion & Gyroscope Detection Engine
   useEffect(() => {
     if (!isEnabled || typeof window === "undefined") return;
@@ -146,28 +163,40 @@ export function ShakePhysicsProvider({ children }: { children: ReactNode }) {
       if (now - lastEventTime < 30) return; // ~33Hz check
       lastEventTime = now;
 
-      const acc = e.accelerationIncludingGravity || e.acceleration;
-      if (!acc || acc.x === null || acc.y === null || acc.z === null) return;
+      // Net acceleration without gravity (highest precision on mobile devices)
+      if (e.acceleration && e.acceleration.x !== null && e.acceleration.y !== null && e.acceleration.z !== null) {
+        const ax = e.acceleration.x || 0;
+        const ay = e.acceleration.y || 0;
+        const az = e.acceleration.z || 0;
+        const mag = Math.sqrt(ax * ax + ay * ay + az * az);
 
-      if (lastX !== null && lastY !== null && lastZ !== null) {
-        const deltaX = Math.abs(acc.x - lastX);
-        const deltaY = Math.abs(acc.y - lastY);
-        const deltaZ = Math.abs(acc.z - lastZ);
-        const totalDelta = deltaX + deltaY + deltaZ;
-
-        // Calibrated sensitive threshold (6.5 works for gentle and hard phone shakes)
-        if (totalDelta > 6.5) {
-          const computedStrength = Math.min(1.5, (totalDelta - 5) / 15);
-          triggerShake(computedStrength);
+        // Highly sensitive shake threshold for net acceleration
+        if (mag > 3.0) {
+          triggerShake(Math.min(1.5, mag / 10));
+          return;
         }
       }
 
-      lastX = acc.x;
-      lastY = acc.y;
-      lastZ = acc.z;
+      // Fallback to acceleration including gravity
+      const accG = e.accelerationIncludingGravity;
+      if (accG && accG.x !== null && accG.y !== null && accG.z !== null) {
+        if (lastX !== null && lastY !== null && lastZ !== null) {
+          const deltaX = Math.abs(accG.x - lastX);
+          const deltaY = Math.abs(accG.y - lastY);
+          const deltaZ = Math.abs(accG.z - lastZ);
+          const totalDelta = deltaX + deltaY + deltaZ;
+
+          if (totalDelta > 4.5) {
+            triggerShake(Math.min(1.5, totalDelta / 12));
+          }
+        }
+        lastX = accG.x;
+        lastY = accG.y;
+        lastZ = accG.z;
+      }
     };
 
-    // Gyroscope-based tilt/shake fallback listener
+    // Gyroscope tilt / rotational shake fallback listener
     const handleOrientation = (e: DeviceOrientationEvent) => {
       if (e.beta === null || e.gamma === null) return;
 
@@ -176,8 +205,8 @@ export function ShakePhysicsProvider({ children }: { children: ReactNode }) {
         const deltaGamma = Math.abs(e.gamma - lastGamma);
         const totalGyroDelta = deltaBeta + deltaGamma;
 
-        if (totalGyroDelta > 25) {
-          triggerShake(Math.min(1.2, totalGyroDelta / 40));
+        if (totalGyroDelta > 18) {
+          triggerShake(Math.min(1.2, totalGyroDelta / 30));
         }
       }
 
