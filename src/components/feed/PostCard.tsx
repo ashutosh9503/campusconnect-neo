@@ -719,9 +719,10 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
             </div>
           </div>
         </div>
-      </ShakePhysicsNode>
+      </div>
+    </ShakePhysicsNode>
 
-      <SharePostModal
+    <SharePostModal
         post={post}
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}

@@ -4,6 +4,7 @@ import { useUserPreferences } from "@/contexts/UserPreferenceContext";
 interface ShakePhysicsContextType {
   isShaking: boolean;
   intensity: number; // 0 to 1
+  permissionGranted: boolean | null;
   triggerShake: (strength?: number) => void;
   requestMotionPermission: () => Promise<boolean>;
 }
@@ -14,6 +15,7 @@ export function ShakePhysicsProvider({ children }: { children: ReactNode }) {
   const { preferences } = useUserPreferences();
   const [isShaking, setIsShaking] = useState(false);
   const [intensity, setIntensity] = useState(0);
+  const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null);
 
   // Spring physics variables for smooth decay
   const physicsState = useRef({
@@ -44,7 +46,6 @@ export function ShakePhysicsProvider({ children }: { children: ReactNode }) {
     const updatePhysics = () => {
       const state = physicsState.current;
 
-      // Spring forces returning to 0
       const ax = -stiff * state.x;
       const ay = -stiff * state.y;
       const ar = -stiff * state.r;
@@ -57,7 +58,6 @@ export function ShakePhysicsProvider({ children }: { children: ReactNode }) {
       state.y += state.vy;
       state.r += state.vr;
 
-      // Decay intensity
       state.currentIntensity += (state.targetIntensity - state.currentIntensity) * 0.15;
       state.targetIntensity *= 0.92;
 
@@ -65,7 +65,6 @@ export function ShakePhysicsProvider({ children }: { children: ReactNode }) {
         state.targetIntensity = 0;
       }
 
-      // Update root CSS custom variables without React re-renders!
       document.documentElement.style.setProperty("--shake-x", `${state.x.toFixed(2)}px`);
       document.documentElement.style.setProperty("--shake-y", `${state.y.toFixed(2)}px`);
       document.documentElement.style.setProperty("--shake-r", `${state.r.toFixed(2)}deg`);
@@ -100,28 +99,51 @@ export function ShakePhysicsProvider({ children }: { children: ReactNode }) {
     const clamped = Math.min(1.5, Math.max(0.2, strength));
     const state = physicsState.current;
 
-    // Apply random vector impulse
     const angle = Math.random() * Math.PI * 2;
-    const force = clamped * 35;
+    const force = clamped * 38;
     state.vx += Math.cos(angle) * force;
     state.vy += Math.sin(angle) * force;
-    state.vr += (Math.random() - 0.5) * clamped * 45;
+    state.vr += (Math.random() - 0.5) * clamped * 50;
     state.targetIntensity = Math.min(1.5, state.targetIntensity + clamped);
     lastShakeTime.current = Date.now();
   };
 
-  // Device Motion Shake Detection
+  // Request motion permission (iOS Safari & Modern Browsers)
+  const requestMotionPermission = async (): Promise<boolean> => {
+    if (
+      typeof window !== "undefined" &&
+      typeof (DeviceMotionEvent as any)?.requestPermission === "function"
+    ) {
+      try {
+        const response = await (DeviceMotionEvent as any).requestPermission();
+        const granted = response === "granted";
+        setPermissionGranted(granted);
+        return granted;
+      } catch (e) {
+        console.error("Error requesting DeviceMotion permission", e);
+        setPermissionGranted(false);
+        return false;
+      }
+    }
+    setPermissionGranted(true);
+    return true;
+  };
+
+  // Device Motion & Gyroscope Detection Engine
   useEffect(() => {
     if (!isEnabled || typeof window === "undefined") return;
 
     let lastX: number | null = null;
     let lastY: number | null = null;
     let lastZ: number | null = null;
+    let lastBeta: number | null = null;
+    let lastGamma: number | null = null;
     let lastEventTime = 0;
 
+    // Acceleration-based shake listener
     const handleDeviceMotion = (e: DeviceMotionEvent) => {
       const now = Date.now();
-      if (now - lastEventTime < 40) return; // Cap at ~25Hz detection rate for efficiency
+      if (now - lastEventTime < 30) return; // ~33Hz check
       lastEventTime = now;
 
       const acc = e.accelerationIncludingGravity || e.acceleration;
@@ -133,9 +155,9 @@ export function ShakePhysicsProvider({ children }: { children: ReactNode }) {
         const deltaZ = Math.abs(acc.z - lastZ);
         const totalDelta = deltaX + deltaY + deltaZ;
 
-        // Threshold for shake trigger (14 is a robust shake threshold)
-        if (totalDelta > 14) {
-          const computedStrength = Math.min(1.5, (totalDelta - 12) / 20);
+        // Calibrated sensitive threshold (6.5 works for gentle and hard phone shakes)
+        if (totalDelta > 6.5) {
+          const computedStrength = Math.min(1.5, (totalDelta - 5) / 15);
           triggerShake(computedStrength);
         }
       }
@@ -145,13 +167,34 @@ export function ShakePhysicsProvider({ children }: { children: ReactNode }) {
       lastZ = acc.z;
     };
 
+    // Gyroscope-based tilt/shake fallback listener
+    const handleOrientation = (e: DeviceOrientationEvent) => {
+      if (e.beta === null || e.gamma === null) return;
+
+      if (lastBeta !== null && lastGamma !== null) {
+        const deltaBeta = Math.abs(e.beta - lastBeta);
+        const deltaGamma = Math.abs(e.gamma - lastGamma);
+        const totalGyroDelta = deltaBeta + deltaGamma;
+
+        if (totalGyroDelta > 25) {
+          triggerShake(Math.min(1.2, totalGyroDelta / 40));
+        }
+      }
+
+      lastBeta = e.beta;
+      lastGamma = e.gamma;
+    };
+
     window.addEventListener("devicemotion", handleDeviceMotion, { passive: true });
+    window.addEventListener("deviceorientation", handleOrientation, { passive: true });
+
     return () => {
       window.removeEventListener("devicemotion", handleDeviceMotion);
+      window.removeEventListener("deviceorientation", handleOrientation);
     };
   }, [isEnabled]);
 
-  // Keyboard Fallback (Shift + S or 's' key) & Desktop Shortcuts
+  // Keyboard Shortcuts (Shift+S, Alt+S, Cmd+S)
   useEffect(() => {
     if (!isEnabled || typeof window === "undefined") return;
 
@@ -167,28 +210,12 @@ export function ShakePhysicsProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isEnabled]);
 
-  // Request motion permission (needed on iOS 13+)
-  const requestMotionPermission = async (): Promise<boolean> => {
-    if (
-      typeof window !== "undefined" &&
-      typeof (DeviceMotionEvent as any)?.requestPermission === "function"
-    ) {
-      try {
-        const response = await (DeviceMotionEvent as any).requestPermission();
-        return response === "granted";
-      } catch (e) {
-        console.error("Error requesting DeviceMotion permission", e);
-        return false;
-      }
-    }
-    return true;
-  };
-
   return (
     <ShakePhysicsContext.Provider
       value={{
         isShaking,
         intensity,
+        permissionGranted,
         triggerShake,
         requestMotionPermission,
       }}
