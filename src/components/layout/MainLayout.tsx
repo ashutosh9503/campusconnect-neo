@@ -14,7 +14,7 @@ interface MainLayoutProps {
 
 export function MainLayout({ children, showSidebars = true }: MainLayoutProps) {
   return (
-    <div className="min-h-screen bg-background relative perspective-1000 overflow-x-hidden">
+    <div className="min-h-screen bg-background relative overflow-x-hidden">
       {/* Dynamic 3D Ambient WebGL/Canvas Layer */}
       <Background3D />
 
@@ -26,13 +26,14 @@ export function MainLayout({ children, showSidebars = true }: MainLayoutProps) {
         <Sidebar />
       </div>
 
+      {/* Mobile Sliding Bottom Navigation Bar */}
       <MobileNav />
 
       {/* Main Content Area */}
       <main
         className={`
         ${showSidebars ? "md:ml-64 md:mr-80" : "md:ml-64"}
-        min-h-screen pb-24 md:pb-0 relative z-10 transform-style-3d
+        min-h-screen pb-28 md:pb-0 relative z-10 perspective-1000 transform-style-3d
       `}
       >
         {children}
