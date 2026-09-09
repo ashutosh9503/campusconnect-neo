@@ -15,6 +15,7 @@ import {
 import type { Database } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { SharePostModal } from "@/components/feed/SharePostModal";
+import { Card3D } from "@/components/3d/Card3D";
 
 type ReactionType = Database["public"]["Enums"]["reaction_type"];
 
@@ -211,16 +212,21 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
   const mediaItems = post.media || [];
 
   return (
-    <article
+    <>
+    <Card3D
       className={cn(
-        "bento-item animate-fade-in",
+        "h-full",
         post.isSpan === "row" && "md:col-span-2",
         post.isSpan === "col" && "md:row-span-2",
         post.isSpan === "both" && "md:col-span-2 md:row-span-2"
       )}
+      maxTilt={6}
+      depth={14}
+      glowColor="lime"
     >
-      {/* Header */}
-      <div className="flex items-start justify-between mb-3">
+      <article className="bento-item animate-fade-in h-full flex flex-col justify-between transform-style-3d">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-3 transform-style-3d">
         <Link
           to={`/profile/${post.author.username}`}
           className="flex items-center gap-3 hover:opacity-80 transition-opacity"
@@ -456,11 +462,13 @@ export function PostCard({ post, onUpdate }: PostCardProps) {
           </div>
         </div>
       )}
-      <SharePostModal
-        post={post}
-        isOpen={showShareModal}
-        onClose={() => setShowShareModal(false)}
-      />
     </article>
+    </Card3D>
+    <SharePostModal
+      post={post}
+      isOpen={showShareModal}
+      onClose={() => setShowShareModal(false)}
+    />
+  </>
   );
 }

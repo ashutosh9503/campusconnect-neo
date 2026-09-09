@@ -193,16 +193,16 @@ export function StoriesBar() {
           className="flex items-center gap-4 overflow-x-auto scrollbar-hide pb-2"
         >
           {/* Add Story Button */}
-          <Link to="/create-story" className="flex-shrink-0 flex flex-col items-center gap-2">
-            <div className="relative">
-              <div className="w-16 h-16 bg-muted border-2 border-dashed border-primary flex items-center justify-center hover:bg-muted/80 transition-colors">
-                <Camera className="w-6 h-6 text-primary" />
+          <Link to="/create-story" className="flex-shrink-0 flex flex-col items-center gap-2 group">
+            <div className="relative transform-style-3d group-hover:-translate-y-1 transition-transform duration-200">
+              <div className="w-16 h-16 bg-muted border-2 border-dashed border-primary flex items-center justify-center hover:bg-muted/80 transition-all shadow-brutal group-hover:shadow-brutal-lime">
+                <Camera className="w-6 h-6 text-primary group-hover:scale-110 transition-transform" />
               </div>
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-primary border-2 border-foreground flex items-center justify-center">
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-primary border-2 border-foreground flex items-center justify-center shadow-sm">
                 <Plus className="w-4 h-4 text-primary-foreground" />
               </div>
             </div>
-            <span className="font-mono text-[10px] text-muted-foreground">ADD STORY</span>
+            <span className="font-mono text-[10px] text-muted-foreground group-hover:text-primary transition-colors">ADD STORY</span>
           </Link>
 
           {/* Stories from DB */}
@@ -210,24 +210,24 @@ export function StoriesBar() {
             <button
               key={story.id}
               onClick={() => handleOpenStory(story)}
-              className="flex-shrink-0 flex flex-col items-center gap-2 group"
+              className="flex-shrink-0 flex flex-col items-center gap-2 group transition-transform duration-200 hover:-translate-y-1"
             >
-              <div className="story-ring-animated">
+              <div className="story-ring-animated shadow-brutal group-hover:shadow-brutal-3d-purple transition-shadow">
                 <div className="w-16 h-16 bg-card border-2 border-foreground flex items-center justify-center group-hover:bg-muted transition-colors overflow-hidden">
                   {story.profile?.avatar_url ? (
                     <img
                       src={story.profile.avatar_url}
                       alt={story.profile.username || "User"}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                     />
                   ) : (
-                    <span className="font-display text-lg text-foreground">
+                    <span className="font-display text-lg text-foreground group-hover:scale-110 transition-transform duration-300">
                       {(story.profile?.username || story.profile?.full_name || "U").slice(0, 2).toUpperCase()}
                     </span>
                   )}
                 </div>
               </div>
-              <span className="font-mono text-[10px] text-muted-foreground truncate max-w-16">
+              <span className="font-mono text-[10px] text-muted-foreground truncate max-w-16 group-hover:text-foreground transition-colors">
                 {story.profile?.username || "user"}
               </span>
             </button>

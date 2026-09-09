@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { TrendingUp, Hash, Flame, Users } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Card3D } from "@/components/3d/Card3D";
 
 interface TrendingItem {
   id: string;
@@ -128,19 +128,21 @@ export function TrendingPanel() {
       </div>
 
       {/* Quick Stats */}
-      <div className="mt-6 p-4 bg-card border-2 border-foreground">
-        <h3 className="font-display text-xs text-muted-foreground mb-3">CAMPUS PULSE</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="font-display text-2xl text-primary">{onlineCount}</p>
-            <p className="font-mono text-[10px] text-muted-foreground">USERS</p>
-          </div>
-          <div>
-            <p className="font-display text-2xl text-secondary">{newTodayCount}</p>
-            <p className="font-mono text-[10px] text-muted-foreground">NEW TODAY</p>
+      <Card3D maxTilt={6} depth={12} glowColor="lime" className="mt-6">
+        <div className="p-4 bg-card border-2 border-foreground shadow-brutal-lime transform-style-3d">
+          <h3 className="font-display text-xs text-muted-foreground mb-3">CAMPUS PULSE</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="transform-style-3d hover:translate-z-10 transition-transform">
+              <p className="font-display text-2xl text-primary">{onlineCount}</p>
+              <p className="font-mono text-[10px] text-muted-foreground">USERS</p>
+            </div>
+            <div className="transform-style-3d hover:translate-z-10 transition-transform">
+              <p className="font-display text-2xl text-secondary">{newTodayCount}</p>
+              <p className="font-mono text-[10px] text-muted-foreground">NEW TODAY</p>
+            </div>
           </div>
         </div>
-      </div>
+      </Card3D>
     </div>
   );
 }

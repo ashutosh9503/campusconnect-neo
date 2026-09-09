@@ -468,11 +468,17 @@ export default function Signup() {
             </form>
 
             {/* Login Link */}
-            <div className="pt-4 border-t-2 border-foreground/20">
-              <p className="font-mono text-xs text-muted-foreground text-center">
+            <div className="pt-4 border-t-2 border-foreground/20 space-y-1 text-center">
+              <p className="font-mono text-xs text-muted-foreground">
                 Already have an account?{" "}
-                <Link to="/login" className="text-primary hover:underline">
+                <Link to="/login" className="text-primary hover:underline font-bold">
                   Login
+                </Link>
+              </p>
+              <p className="font-mono text-[11px] text-muted-foreground">
+                Forgot or need to change password?{" "}
+                <Link to="/login" className="text-secondary hover:underline font-bold">
+                  Reset / Change Password
                 </Link>
               </p>
             </div>

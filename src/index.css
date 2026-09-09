@@ -270,4 +270,69 @@
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
+
+  /* 3D Perspective & Preservation Utilities */
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+
+  .perspective-1500 {
+    perspective: 1500px;
+  }
+
+  .transform-style-3d {
+    transform-style: preserve-3d;
+  }
+
+  .backface-hidden {
+    backface-visibility: hidden;
+  }
+
+  /* Dynamic 3D Layer Elevations */
+  .translate-z-10 {
+    transform: translateZ(10px);
+  }
+
+  .translate-z-20 {
+    transform: translateZ(20px);
+  }
+
+  .translate-z-30 {
+    transform: translateZ(30px);
+  }
+
+  .translate-z-40 {
+    transform: translateZ(40px);
+  }
+
+  /* Interactive Dynamic 3D Brutalist Shadow Elevate */
+  .shadow-brutal-3d {
+    box-shadow: 6px 6px 0px hsl(var(--foreground)), 12px 12px 20px rgba(0, 0, 0, 0.8);
+    transition: transform 0.25s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.25s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  .shadow-brutal-3d-lime {
+    box-shadow: 6px 6px 0px hsl(var(--primary)), 0px 10px 25px rgba(130, 255, 0, 0.3);
+    transition: transform 0.25s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.25s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  .shadow-brutal-3d-purple {
+    box-shadow: 6px 6px 0px hsl(var(--secondary)), 0px 10px 25px rgba(160, 32, 240, 0.35);
+    transition: transform 0.25s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.25s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  /* 3D Float Animation */
+  @keyframes float3d {
+    0%, 100% {
+      transform: translateY(0px) rotateX(0deg) rotateY(0deg);
+    }
+    50% {
+      transform: translateY(-6px) rotateX(2deg) rotateY(-2deg);
+    }
+  }
+
+  .animate-float-3d {
+    animation: float3d 6s ease-in-out infinite;
+  }
 }
+

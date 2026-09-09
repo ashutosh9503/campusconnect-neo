@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { formatDistanceToNow } from "date-fns";
+import { Card3D } from "@/components/3d/Card3D";
 
 interface Notice {
   id: string;
@@ -182,44 +182,45 @@ export function NoticeWall() {
           </p>
         ) : (
           notices.map((notice) => (
-            <div
-              key={notice.id}
-              className={cn(
-                "p-3 border-l-4 bg-muted/30 hover:bg-muted/50 transition-colors animate-fade-in group relative",
-                notice.type === "urgent" && "border-l-red-500",
-                notice.type === "event" && "border-l-blue-500",
-                notice.type === "academic" && "border-l-green-500",
-                notice.type === "general" && "border-l-gray-500"
-              )}
-            >
-              <div className="flex items-start justify-between mb-1">
-                <span className={cn(
-                  "text-[10px] uppercase font-bold px-1.5 py-0.5 text-white",
-                  notice.type === "urgent" && "bg-red-500",
-                  notice.type === "event" && "bg-blue-500",
-                  notice.type === "academic" && "bg-green-500",
-                  notice.type === "general" && "bg-gray-500"
-                )}>
-                  {notice.type}
-                </span>
-                <span className="text-[10px] text-muted-foreground font-mono">
-                  {notice.profiles?.username ? `@${notice.profiles.username} • ` : ""}
-                  {formatDistanceToNow(new Date(notice.created_at), { addSuffix: true })}
-                </span>
+            <Card3D key={notice.id} maxTilt={6} depth={10} glowColor="purple">
+              <div
+                className={cn(
+                  "p-3 border-l-4 bg-muted/40 hover:bg-muted/70 transition-colors animate-fade-in group relative transform-style-3d shadow-brutal-purple",
+                  notice.type === "urgent" && "border-l-red-500",
+                  notice.type === "event" && "border-l-blue-500",
+                  notice.type === "academic" && "border-l-green-500",
+                  notice.type === "general" && "border-l-gray-500"
+                )}
+              >
+                <div className="flex items-start justify-between mb-1">
+                  <span className={cn(
+                    "text-[10px] uppercase font-bold px-1.5 py-0.5 text-white shadow-sm",
+                    notice.type === "urgent" && "bg-red-500",
+                    notice.type === "event" && "bg-blue-500",
+                    notice.type === "academic" && "bg-green-500",
+                    notice.type === "general" && "bg-gray-500"
+                  )}>
+                    {notice.type}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground font-mono">
+                    {notice.profiles?.username ? `@${notice.profiles.username} • ` : ""}
+                    {new Date(notice.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+                <h3 className="font-bold text-sm mb-1 text-foreground">{notice.title}</h3>
+                <p className="text-xs text-muted-foreground font-mono leading-relaxed">
+                  {notice.content}
+                </p>
+                {user && (user.id === notice.created_by || isAdmin) && (
+                  <button
+                    onClick={() => handleDeleteNotice(notice.id)}
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1 text-destructive hover:bg-destructive/10 rounded transition-all"
+                  >
+                    <img src="https://api.iconify.design/lucide:trash-2.svg" className="w-3 h-3" />
+                  </button>
+                )}
               </div>
-              <h3 className="font-bold text-sm mb-1">{notice.title}</h3>
-              <p className="text-xs text-muted-foreground font-mono leading-relaxed">
-                {notice.content}
-              </p>
-              {user && (user.id === notice.created_by || isAdmin) && (
-                <button
-                  onClick={() => handleDeleteNotice(notice.id)}
-                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1 text-destructive hover:bg-destructive/10 rounded transition-all"
-                >
-                  <img src="https://api.iconify.design/lucide:trash-2.svg" className="w-3 h-3" />
-                </button>
-              )}
-            </div>
+            </Card3D>
           ))
         )}
       </div>
